@@ -1,6 +1,7 @@
 # assigns values to opcodes. Acts as a enumerator
 from enum import IntEnum
 
+
 class Opcodes(IntEnum):
     # various opcodes
     push = 1

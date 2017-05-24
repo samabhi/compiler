@@ -28,7 +28,7 @@ class Parser(object):
     # Statement Handler Functions
 
     # ################################################################################################
-    # Handles case statement
+
     def case_statement(self):
 
         self.match("TK_CASE")
@@ -36,7 +36,7 @@ class Parser(object):
         checker = self.current_token
         exp_1 = self.expressions()
         if exp_1 == "TK_REAL":
-            raise TypeError('Real type not allowed for case: ' + exp_1)
+            raise TypeError('Type real not accepted for: ' + exp_1)
         self.match("TK_RIGHT_PAR")
         self.match("TK_OF")
         hole_list = []
@@ -113,7 +113,6 @@ class Parser(object):
         self.make_address(save)
         self.instruction_indicator = save
 
-    # Handles if-else control statements
     def if_statement(self):
         self.match("TK_IF")
         self.condition()
@@ -138,7 +137,6 @@ class Parser(object):
         self.make_address(save)
         self.instruction_indicator = save
 
-    # handles while loops
     def while_loops(self):
         self.match("TK_WHILE")
         target = self.instruction_indicator
@@ -163,7 +161,6 @@ class Parser(object):
         self.match("TK_END")
         self.match("TK_SEMICOLON")
 
-    # handles repeat-until loops
     def repeat_statement(self):
         self.match("TK_REPEAT")
         target = self.instruction_indicator
@@ -173,7 +170,6 @@ class Parser(object):
         self.make_opcode(Opcodes.jfalse)
         self.make_address(target)
 
-    # generates machine instructions to write to standard output
     def writeln(self):
         self.match("TK_WRITELN")
         self.match("TK_LEFT_PAR")
@@ -197,7 +193,7 @@ class Parser(object):
                     self.make_opcode(Opcodes.print_real)
                     self.make_address(symbol.data_indicator)
                 else:
-                    raise TypeError("Writeln does not support type: " + str(symbol))
+                    raise TypeError("Not supported")
             if self.current_token[1] == "TK_COMMA":
                 self.match("TK_COMMA")
             elif self.current_token[1] == "TK_RIGHT_PAR":
@@ -205,9 +201,8 @@ class Parser(object):
                 self.make_opcode(Opcodes.newline)
                 return
             else:
-                raise SyntaxError("Expected right paren or comma. Found: " + self.current_token[1])
+                raise SyntaxError("Right parentheses or comma expected.")
 
-    # identifies the type of statement. Based on context free grammar
     def statements(self):
         while self.current_token[1] != "TK_END":
             if self.current_token[1] == "TK_ID":
@@ -229,7 +224,6 @@ class Parser(object):
             elif self.current_token[1] == "TK_CASE":
                 self.case_statement()
             else:
-                # print "statements function: Can't match current token ", self.current_token
                 return
 
     # ####################################################################################
@@ -257,15 +251,105 @@ class Parser(object):
         self.match("TK_ID")
         self.match("TK_SEMICOLON")
 
-        # if the first token is Tk_VAR then call declarations to make variable declarations
+        # if file has variable declarations then call declare_var
         if self.current_token[1] == "TK_VAR":
-            self.declarations()
+            self.declare_var()
         else:
             self.begin()
 
         return self.bytes_list
 
     # #######################################################################################
+
+    def declare_var(self):
+        """
+        """
+
+        self.match("TK_VAR")
+
+        var_list = []
+
+        while self.current_token[1] == "TK_ID":
+            if self.current_token not in var_list:
+                var_list.append(self.current_token)
+                self.match("TK_ID")
+
+                if self.current_token[1] == "TK_COMMA":
+                    self.match("TK_COMMA")
+            else:
+                raise NameError("Variable already declared" + self.current_token[1])
+
+        self.match("TK_COLON")
+
+        if self.current_token[1] == "TK_INTEGER":
+            data_type = self.current_token[1]
+            self.match("TK_INTEGER")
+        elif self.current_token[1] == "TK_BOOL":
+            data_type = self.current_token[1]
+            self.match("TK_BOOL")
+        elif self.current_token[1] == "TK_CHAR":
+            data_type = self.current_token[1]
+            self.match("TK_CHAR")
+        elif self.current_token[1] == "TK_REAL":
+            data_type = self.current_token[1]
+            self.match("TK_REAL")
+        elif self.current_token[1] == "TK_ARRAY":
+            data_type = self.current_token[1]
+            self.match("TK_ARRAY")
+        else:
+            raise TypeError("Invalid Type: " + self.current_token[1])
+
+        if data_type == "TK_ARRAY":
+            self.match("TK_LEFT_BRACKET")
+            split = self.current_token[0].split('..')
+            if len(split) != 2:
+                raise SyntaxError('Range needs to be like  0..2')
+            lower_bound = int(split[0])
+            upper_bound = int(split[1])
+
+            access_type = "TK_INTEGER"
+
+            self.match("TK_RANGE")
+            self.match("TK_RIGHT_BRACKET")
+            self.match("TK_OF")
+
+            if self.current_token[1] == "TK_INTEGER":
+                assignment_type = self.current_token[1]
+                self.match("TK_INTEGER")
+            elif self.current_token[1] == "TK_REAL":
+                assignment_type = self.current_token[1]
+                self.match("TK_REAL")
+            elif self.current_token[1] == "TK_CHAR":
+                assignment_type = self.current_token[1]
+                self.match("TK_CHAR")
+            elif self.current_token[1] == "TK_BOOL":
+                assignment_type = self.current_token[1]
+                self.match("TK_BOOL")
+            else:
+                raise TypeError("Unsupported types: " + self.current_token[1])
+            self.match("TK_SEMICOLON")
+
+            for var in var_list:
+                s = Symbol(var[0], 'TK_ARRAY', 'ARRAY', self.data_indicator)
+                s.access_type = access_type
+                s.lower_bound = lower_bound
+                s.upper_bound = upper_bound
+                s.assignment_type = assignment_type
+                self.symbol_table.append(s)
+                self.data_indicator += 4 * int(upper_bound) - int(lower_bound)
+
+        else:
+            self.match("TK_SEMICOLON")
+            for var in var_list:
+                var_symbol = Symbol(var[0], data_type, "VARIABLE", self.data_indicator)
+                self.data_indicator += 1
+                self.symbol_table.append(var_symbol)
+            self.data_indicator += 1
+
+        if self.current_token[1] == "TK_VAR":
+            self.declare_var()
+        else:
+            self.begin()
 
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
         op_Opcode = arth_op
@@ -307,98 +391,7 @@ class Parser(object):
             return None
         return "TK_BOOL"
 
-    # ##############################################################################
-    # storing variables properly to the symbol table.
-    def declarations(self):
-        self.match("TK_VAR")
-
-        var_list = []
-
-        while self.current_token[1] == "TK_ID":
-            # stops the program from declaring a same variable again
-            if self.current_token in var_list:
-                raise NameError("Variable already declared" + self.current_token[1])
-            # saving the variable to symbol table if valid
-            else:
-                var_list.append(self.current_token)
-                self.match("TK_ID")
-
-                if self.current_token[1] == "TK_COMMA":
-                    self.match("TK_COMMA")
-
-        self.match("TK_COLON")
-
-        # Checks for variables of different data types
-        if self.current_token[1] == "TK_INTEGER":
-            data_type = self.current_token[1]
-            self.match("TK_INTEGER")
-        elif self.current_token[1] == "TK_BOOL":
-            data_type = self.current_token[1]
-            self.match("TK_BOOL")
-        elif self.current_token[1] == "TK_CHAR":
-            data_type = self.current_token[1]
-            self.match("TK_CHAR")
-        elif self.current_token[1] == "TK_REAL":
-            data_type = self.current_token[1]
-            self.match("TK_REAL")
-        elif self.current_token[1] == "TK_ARRAY":
-            data_type = self.current_token[1]
-            self.match("TK_ARRAY")
-        else:
-            raise TypeError("Invalid Type: " + self.current_token[1])
-
-        if data_type == "TK_ARRAY":
-            self.match("TK_LEFT_BRACKET")
-            access_type, token, lower_bound, upper_bound = self.get_range(self.current_token)
-            self.match("TK_RANGE")
-            self.match("TK_RIGHT_BRACKET")
-            self.match("TK_OF")
-
-            if self.current_token[1] == "TK_INTEGER":
-                assignment_type = self.current_token[1]
-                self.match("TK_INTEGER")
-            elif self.current_token[1] == "TK_REAL":
-                assignment_type = self.current_token[1]
-                self.match("TK_REAL")
-            elif self.current_token[1] == "TK_CHAR":
-                assignment_type = self.current_token[1]
-                self.match("TK_CHAR")
-            elif self.current_token[1] == "TK_BOOL":
-                assignment_type = self.current_token[1]
-                self.match("TK_BOOL")
-            else:
-                raise TypeError("Unsupported array types: " + self.current_token[1])
-            self.match("TK_SEMICOLON")
-
-            if access_type == "TK_INTEGER":
-                for var in var_list:
-                    s = Symbol(var[0], 'TK_ARRAY', 'ARRAY', self.data_indicator)
-                    s.access_type = access_type
-                    s.lower_bound = lower_bound
-                    s.upper_bound = upper_bound
-                    s.assignment_type = assignment_type
-                    self.symbol_table.append(s)
-                    self.data_indicator += 4 * int(upper_bound) - int(lower_bound)
-            else:
-                raise TypeError("Array access type not allowed:" + access_type)
-
-        else:
-            self.match("TK_SEMICOLON")
-            for var in var_list:
-                var_symbol = Symbol(var[0], data_type, "VARIABLE", self.data_indicator)
-                self.data_indicator += 1
-                self.symbol_table.append(var_symbol)
-            self.data_indicator += 1
-        # see if there are more variables
-        if self.current_token[1] == "TK_VAR":
-            self.declarations()
-        else:
-            # declarations ended
-            self.begin()
-
     # ###############################################################################################
-
-            # #################################################################################################
 
     # handles expressions
     def expressions(self):
@@ -426,7 +419,7 @@ class Parser(object):
             data_type1 = self.emit(token_op, data_type1, data_type2)
         return data_type1
 
-            # ##############################################################################################
+        # ##############################################################################################
 
     # handles factor and creates machine instructions
     def factor(self):
@@ -476,24 +469,7 @@ class Parser(object):
         else:
             pass
 
-
     # #####################################################################################################
-    # Gets range of access for an array
-    # Returns types consisting of access type, the token, lower bound of the range, and the upper bound
-    def get_range(self, token):
-
-        split = token[0].split('..')
-        if len(split) != 2:
-            raise SyntaxError('Range token needs to be in the form of  0..2, got ' + self.current_token)
-        lower_bound, upper_bound = split[0], split[1]
-
-        access_type = "TK_INTEGER"
-
-        # assume int
-        lower_bound = int(lower_bound)
-        upper_bound = int(upper_bound)
-
-        return access_type, token, lower_bound, upper_bound
 
     # ######################################################################################################
     # Accesses the array for the range specified by program
@@ -611,14 +587,9 @@ class Parser(object):
 
             # #######################################################################################
 
-    # Handles various condition types
-    # Returns: Data type
     def condition(self):
         term1 = self.expressions()
 
-        # value = self.current_token[0]
-
-        # Equal '==' Condition
         if self.current_token[1] in comparison_operators_list:
             data_type = self.current_token[1]
             self.match(data_type)
@@ -626,7 +597,6 @@ class Parser(object):
             term1 = self.emit(data_type, term1, term2)
             return term1
 
-        # Else it raises an error
         else:
             raise TypeError("Expected condition, but instead received: " + self.current_token[1])
 
