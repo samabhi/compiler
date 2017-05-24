@@ -9,6 +9,7 @@ defined_keywords_list = {
       "bool": "TK_bool",
       "case": "TK_case",
       "char": "TK_char",
+      "comment": "TK_comment",
       "const": "TK_const",
       "constructor": "TK_constructor",
       "destructor": "TK_destructor",
