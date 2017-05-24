@@ -1,17 +1,6 @@
 # -*- pascal_scanner.py -*-
 # Reads a pascal files and returns a list of token objects
 
-# ----------------------------------------
-#  TODO
-# ----------------------------------------
-
-# - [done] Scan pascal file
-# - [done] Tokenize program
-# - - [done] Handle alphanumerics
-# - - [done] Handle operators
-# - - [done] Handle quotes
-# - - [done] Handle comments
-
 import keywords
 from tokens import Token
 
@@ -43,6 +32,7 @@ class Scanner(object):
         #       - value of token
         #   * keyValue
         #       - data type of token
+
         return self.token.buildToken(tempWord, keywords.defined_keywords_list.get(keyValue).upper())
 
     # #############################################################################
@@ -110,12 +100,14 @@ class Scanner(object):
     def caseNum(self):
         # Parameters
         # Returns: A token which was returned by the helper function
+
         tempDigit = ""
 
         while self.array_index < len(self.pascal):
             # create string of numbers
-            if self.pascal[self.array_index].isdigit() or self.pascal[self.array_index] == '.' or self.pascal[
-                self.array_index] == 'e':
+            if self.pascal[self.array_index].isdigit() or \
+                            self.pascal[self.array_index] == '.' or \
+                            self.pascal[self.array_index] == 'e':
                 tempDigit += self.pascal[self.array_index]
                 self.array_index += 1
                 self.token.set_colNumber(self.token.get_colNumber() + 1)
@@ -186,7 +178,7 @@ class Scanner(object):
                     return self.token.buildToken(tempComment, self.reserved_prefix + "COMMENT")
                 else:
                     tempComment += self.pascal[self.array_index]
-                    self.help_caseComment(tempComment)
+                    self.help_caseComment()
 
             # throw error if file ends before comment ends
             if self.array_index >= len(self.pascal):
@@ -208,37 +200,6 @@ class Scanner(object):
         # throw an error if the file ends before the string is completed
         if self.array_index >= len(self.pascal):
             return "ERROR: End of file before string completed"
-
-    # #############################################################################
-
-    # Scanner
-
-    # #############################################################################
-
-    def scan(self):
-        while self.array_index < len(self.pascal):
-
-            if self.pascal[self.array_index].isalpha():
-                self.token_lst.append(self.caseLetter())
-            elif self.pascal[self.array_index].isdigit():
-                self.token_lst.append(self.caseNum())
-            elif self.pascal[self.array_index] == " ":
-                self.array_index += 1
-                self.token.set_colNumber(self.token.get_colNumber() + 1)
-            elif self.pascal[self.array_index] == "\n":
-                self.array_index += 1
-                self.token.set_rowNumber(self.token.get_rowNumber() + 1)
-                self.token.set_colNumber(0)
-            elif self.pascal[self.array_index] in self.supported_operators:
-                self.token_lst.append(self.caseOperator())
-            elif self.pascal[self.array_index] == "\'":
-                self.token_lst.append(self.caseQuote())
-            else:
-                raise TypeError("Can't identify char: " + self.pascal[self.array_index])
-
-        self.token_lst.append(self.token.buildToken("EOF", keywords.defined_keywords_list.get("eof").upper()))
-
-        return self.token_lst
 
     # #############################################################################
 
@@ -372,12 +333,8 @@ class Scanner(object):
 
             self.array_index += 1
 
-    # #########################
-
-    def help_caseComment(self, tempComment):
+    def help_caseComment(self):
         # Parameters
-        #   * tempComment
-        #       - a value that is a comment
 
         if self.pascal[self.array_index] == "\n":
             self.token.set_colNumber(self.token.get_colNumber() + 0)
