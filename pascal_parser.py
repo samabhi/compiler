@@ -1,14 +1,16 @@
-# this code generates machine code from each of the user program instructions
+# -*- pascal_parser.py -*-
+# Generates machine code from each of the user program instructions
+
 from pascal_opcodes import Opcodes, compress_bytes, arth_op, comp_op
-from Symbol import symbol
+from symbol import Symbol
 import auxiliary_parser_functions as Aux
 from keywords import comparison_operators_list
 
 
 class Parser(object):
-    def __init__(self, clues):
+    def __init__(self, tokens):
 
-        self.clues_list = clues
+        self.clues_list = tokens
         self.clues_array_index = 0
         self.instruction_indicator = 0
         self.data_indicator = 0
@@ -18,7 +20,7 @@ class Parser(object):
         self.current_token = self.clues_list[self.clues_array_index]
         self.clues_array_index += 1
 
-# ####################################################################################
+    # ####################################################################################
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
         op_Opcode = arth_op
         if Aux.check_int_int(datatype_1, datatype_2):
@@ -59,7 +61,7 @@ class Parser(object):
             return None
         return "TK_BOOL"
 
-# ##############################################################################
+    # ##############################################################################
     # storing variables properly to the symbol table.
     def declarations(self):
         self.match("TK_VAR")
@@ -124,7 +126,7 @@ class Parser(object):
 
             if access_type == "TK_INTEGER":
                 for var in var_list:
-                    s = symbol(var[0], 'TK_ARRAY', 'ARRAY', self.data_indicator)
+                    s = Symbol(var[0], 'TK_ARRAY', 'ARRAY', self.data_indicator)
                     s.access_type = access_type
                     s.lower_bound = lower_bound
                     s.upper_bound = upper_bound
@@ -137,7 +139,7 @@ class Parser(object):
         else:
             self.match("TK_SEMICOLON")
             for var in var_list:
-                var_symbol = symbol(var[0], data_type, "VARIABLE", self.data_indicator)
+                var_symbol = Symbol(var[0], data_type, "VARIABLE", self.data_indicator)
                 self.data_indicator += 1
                 self.symbol_table.append(var_symbol)
             self.data_indicator += 1

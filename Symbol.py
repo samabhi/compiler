@@ -1,4 +1,4 @@
-class symbol(object):
+class Symbol(object):
 
         # Constructor
         def __init__(self, name, data_type, description, data_indicator):
