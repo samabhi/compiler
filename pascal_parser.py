@@ -1,4 +1,4 @@
-#this code generates machine code from each of the user program instructions
+# this code generates machine code from each of the user program instructions
 from pascal_opcodes import Opcodes, compress_bytes, arth_op, comp_op
 from Symbol import symbol
 import auxiliary_parser_functions as Aux
@@ -21,23 +21,23 @@ class Parser(object):
 # ####################################################################################
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
         op_Opcode = arth_op
-        if Aux.check_int_int(datatype_1,datatype_2):
+        if Aux.check_int_int(datatype_1, datatype_2):
             self.make_opcode(op_Opcode.get(operation))
-            if(operation == "division"):
+            if (operation == "division"):
                 return datatype_1
             else:
                 return "TK_INTEGER"
-        elif Aux.check_int_real(datatype_1,datatype_2):
+        elif Aux.check_int_real(datatype_1, datatype_2):
             self.make_opcode(Opcodes.xchg,
                              Opcodes.cvr,
                              Opcodes.xchg,
                              op_Opcode.get(str("f" + operation)))
             return "TK_REAL"
-        elif Aux.check_real_int(datatype_1,datatype_2):
+        elif Aux.check_real_int(datatype_1, datatype_2):
             self.make_opcode(Opcodes.cvr, op_Opcode.get(str("f" + operation)))
             return "TK_REAL"
-        elif Aux.check_real_real(datatype_1,datatype_2):
-            if(operation in {"subtraction","multiplication"}):
+        elif Aux.check_real_real(datatype_1, datatype_2):
+            if (operation in {"subtraction", "multiplication"}):
                 self.make_opcode(op_Opcode.get(str("f" + operation)))
             elif operation == "addition":
                 self.make_opcode(op_Opcode.get(operation))
@@ -50,14 +50,13 @@ class Parser(object):
         dict_op = comp_op
 
         if self.ifEqual(datatype_1, datatype_2):
-                self.make_opcode(dict_op.get(operation))
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg, Opcodes.cvr, Opcodes.xchg, dict_op.get(operation))
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr, dict_op.get(operation))
+            self.make_opcode(dict_op.get(operation))
+        elif Aux.check_int_real(datatype_1, datatype_2):
+            self.make_opcode(Opcodes.xchg, Opcodes.cvr, Opcodes.xchg, dict_op.get(operation))
+        elif Aux.check_real_int(datatype_1, datatype_2):
+            self.make_opcode(Opcodes.cvr, dict_op.get(operation))
         else:
-                return None
-
+            return None
         return "TK_BOOL"
 
 # ##############################################################################
@@ -148,7 +147,8 @@ class Parser(object):
         else:
             # declaratiosn ended
             self.begin()
-# ####################################################################################
+            # ####################################################################################
+
     # see if the current token is already stored in the symbol table
     # Returns: symbol object
     def find_name(self, label):
@@ -158,7 +158,8 @@ class Parser(object):
                 return obj
 
         return None
-# ####################################################################################
+
+    # ####################################################################################
     # see if the current token matches with input
     def match(self, tk_):
 
@@ -169,7 +170,8 @@ class Parser(object):
         else:
             raise IndexError("Doesn't Match" + " " + tk_ + " " + self.current_token[1])
 
-# #####################################################################################
+            # #####################################################################################
+
     # starting the parser
     def start_parser(self):
 
@@ -184,7 +186,7 @@ class Parser(object):
 
         return self.bytes_list
 
-# #######################################################################################
+    # #######################################################################################
     # Handles "Begin" begin keyword in pascal
     def begin(self):
         while self.current_token[1] == "TK_COMMENT":
@@ -196,7 +198,8 @@ class Parser(object):
         self.match("TK_EOF")
         self.make_opcode(Opcodes.halt)
 
- # #######################################################################################
+        # #######################################################################################
+
     # identifies the type of statement. Based on context free grammar
     def statements(self):
         while self.current_token[1] != "TK_END":
@@ -222,14 +225,16 @@ class Parser(object):
                 # print "statements function: Can't match current token ", self.current_token
                 return
 
-# ###############################################################################################
+                # ###############################################################################################
+
     # generates one byte opcode using the instruction pointer and then increments the instruction pointer
     def make_opcode(self, *ops):
         for op in ops:
             self.bytes_list[self.instruction_indicator] = op
             self.instruction_indicator += 1
 
-# ################################################################################################
+            # ################################################################################################
+
     # packs a target value into 4 bytes, using the instruction pointer and increments the instruction pointer
     def make_address(self, target):
 
@@ -239,7 +244,8 @@ class Parser(object):
             self.bytes_list[self.instruction_indicator] = byte
             self.instruction_indicator += 1
 
-# #################################################################################################
+            # #################################################################################################
+
     # handles expressions
     def expressions(self):
 
@@ -255,26 +261,27 @@ class Parser(object):
 
         return data_type1
 
-# ##############################################################################################
+    # ##############################################################################################
     # handles terms
     def term(self):
         data_type1 = self.factor()
         while self.current_token[1] == "TK_MULTIPLY" or self.current_token[1] == "TK_DIVIDE":
-
             token_op = self.current_token[1]
             self.match(token_op)
             data_type2 = self.factor()
             data_type1 = self.emit(token_op, data_type1, data_type2)
         return data_type1
-# #############################################################################################
-    def ifEqual(self,dat1,dat2):
+
+    # #############################################################################################
+    def ifEqual(self, dat1, dat2):
         if dat1 == dat2:
             return True
         else:
             return False
 
 
-# ##############################################################################################
+            # ##############################################################################################
+
     # handles factor and creates machine instructions
     def factor(self):
 
@@ -323,7 +330,8 @@ class Parser(object):
         else:
             pass
 
-# #########################################################################################
+            # #########################################################################################
+
     # generates machine instructions to write to standard output
     def writeln(self):
         self.match("TK_WRITELN")
@@ -348,7 +356,7 @@ class Parser(object):
                     self.make_opcode(Opcodes.print_real)
                     self.make_address(symbol.data_indicator)
                 else:
-                    raise TypeError("Writeln does not support type: " + str(symbol) )
+                    raise TypeError("Writeln does not support type: " + str(symbol))
             if self.current_token[1] == "TK_COMMA":
                 self.match("TK_COMMA")
             elif self.current_token[1] == "TK_RIGHT_PAR":
@@ -358,7 +366,8 @@ class Parser(object):
             else:
                 raise SyntaxError("Expected right paren or comma. Found: " + self.current_token[1])
 
-# ###################################################################################################
+                # ###################################################################################################
+
     # handles while loops
     def while_loops(self):
         self.match("TK_WHILE")
@@ -384,8 +393,7 @@ class Parser(object):
         self.match("TK_END")
         self.match("TK_SEMICOLON")
 
-
-# #####################################################################################################
+    # #####################################################################################################
     # Handles if-else control statements
     def if_statement(self):
         self.match("TK_IF")
@@ -411,7 +419,7 @@ class Parser(object):
         self.make_address(save)
         self.instruction_indicator = save
 
-# #########################################################################################
+    # #########################################################################################
     # Handles for loops
     # Returns: Nothing
     def for_statement(self):
@@ -453,7 +461,7 @@ class Parser(object):
         self.make_address(save)
         self.instruction_indicator = save
 
-# #########################################################################################33
+    # #########################################################################################33
     # Handles case statement
     def case_statement(self):
 
@@ -500,7 +508,7 @@ class Parser(object):
             self.make_address(save)
         self.instruction_indicator = save
 
-# #####################################################################################################
+    # #####################################################################################################
     # Gets range of access for an array
     # Returns types consisting of access type, the token, lower bound of the range, and the upper bound
     def get_range(self, token):
@@ -518,7 +526,7 @@ class Parser(object):
 
         return access_type, token, lower_bound, upper_bound
 
-# ######################################################################################################
+    # ######################################################################################################
     # Accesses the array for the range specified by program
     def access_array(self, symbol):
         self.match("TK_LEFT_BRACKET")
@@ -544,7 +552,8 @@ class Parser(object):
         else:
             raise TypeError('Array does not support type:' + current_symbol.data_type)
 
-# ####################################################################################################
+            # ####################################################################################################
+
     # Handles array assignments
     def array_assignment(self, symbol):
         self.access_array(symbol)
@@ -555,27 +564,28 @@ class Parser(object):
         else:
             raise TypeError('Array assignment mismatched types: ' + exp_1 + ' and ' + symbol.assignment_type)
 
-#   ####################################################################################################
+            #   ####################################################################################################
+
     #  based on lookup tables. Creates appropriate machine instructions depending on operation and
     # the combination of datatype of the variables
     # Returns: Data type of result
     def emit(self, operation, datatype_1, datatype_2):
         # addition
         if operation == "TK_ADD":
-            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="addition")
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="addition")
         # subtraction
         elif operation == "TK_SUBTRACT":
-            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="subtraction")
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="subtraction")
         # division
         elif operation == "TK_DIVIDE":
-            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="division")
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="division")
         elif operation == "TK_DIV":
             if datatype_1 == "TK_INTEGER" and datatype_2 == "TK_INTEGER":
                 self.make_opcode(Opcodes.divide)
                 return "TK_INT"
         # multiplication
         elif operation == "TK_MULTIPLY":
-            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="multiplication")
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="multiplication")
         # or operator
         elif operation == "TK_OR":
             if datatype_1 == "TK_BOOL" and datatype_2 == "TK_BOOL":
@@ -602,7 +612,8 @@ class Parser(object):
         else:
             raise TypeError("Emit cannot match datatype. Datatypes found: " + datatype_1 + " , " + datatype_2)
 
-# #############################################################################################################
+            # #############################################################################################################
+
     # handles variable assignment
     def assignment_statement(self):
         symbol = self.find_name(self.current_token[0])
@@ -629,7 +640,8 @@ class Parser(object):
         else:
             raise NameError("Variable Not Declared: " + self.current_token[0])
 
-# #######################################################################################
+            # #######################################################################################
+
     # Handles various condition types
     # Returns: Data type
     def condition(self):
@@ -647,9 +659,10 @@ class Parser(object):
 
         # Else it raises an error
         else:
-            raise TypeError("Expected condition, but instead recieved: " + self.current_token[1])
+            raise TypeError("Expected condition, but instead received: " + self.current_token[1])
 
-# ################################################################################################
+            # ################################################################################################
+
     # handles repeat-until loops
     def repeat_statement(self):
         self.match("TK_REPEAT")
@@ -659,4 +672,3 @@ class Parser(object):
         self.condition()
         self.make_opcode(Opcodes.jfalse)
         self.make_address(target)
-

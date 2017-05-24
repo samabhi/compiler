@@ -7,6 +7,6 @@ class symbol(object):
             self.description = description
             self.data_indicator = data_indicator
 
-        # String reprsentation of symbol object
+        # String representation of symbol object
         def __repr__(self):
             return self.label + ' ' + str(self.data_type) + ' ' + str(self.description)
