@@ -164,19 +164,19 @@ class Scanner(object):
             self.token.set_colNumber(self.token.get_colNumber() + 1)
             return self.opTokenBuilder(tempOperator)
 
-    # Returns: String token or an error if quotes are improperly handled
     def help_caseQuote(self, tempString):
+        # Parameters
+        #   * tempString
+        #       - a value that is an string
+        # Returns: A token with a string data type
+
         # Check if it is the closing '
         if self.pascal[self.array_index] == "\'" and self.pascal[self.array_index + 1] != "\'":
             tempString += self.pascal[self.array_index]
             self.array_index += 1
             self.token.set_colNumber(self.token.get_colNumber() + 1)
             return self.tokenBuilder(tempString, "string")
-        # else check if it is a quote within a quote
-        elif self.pascal[self.array_index] == "\'" and self.pascal[self.array_index + 1] == "\'":
-            tempString += self.pascal[self.array_index] + self.pascal[self.array_index + 1]
-            self.array_index += 2
-            self.token.set_colNumber(self.token.get_colNumber() + 2)
+
         # else it is just another char
         else:
             tempString += self.pascal[self.array_index]
@@ -192,7 +192,7 @@ class Scanner(object):
 
             # ##########################################################################################################################################
 
-    def help_four_caseComment(self, tempComment):
+    def help_caseComment(self, tempComment):
         if self.pascal[self.array_index] == "\n":
             self.token.set_colNumber(self.token.get_colNumber() + 0)
             self.token.set_rowNumber(self.token.get_rowNumber() + 1)
@@ -355,7 +355,7 @@ class Scanner(object):
                     return self.token.buildToken(tempComment, self.reserved_prefix + "COMMENT")
                 else:
                     tempComment += self.pascal[self.array_index]
-                    self.help_four_caseComment(tempComment)
+                    self.help_caseComment(tempComment)
 
             # throw error if file ends before comment ends
             if self.array_index >= len(self.pascal):
