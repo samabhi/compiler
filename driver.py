@@ -12,7 +12,7 @@ if __name__ == '__main__':
     #Run the scanner
     root = tkinter.Tk()
     root.withdraw()
-    filename = askopenfilename(initialdir=root,
+    filename = askopenfilename(initialdir='pascal_testFunctions',
                                filetypes=[("Pascal File","*.pas")],
                                title='Choose a pascal file'
                             )
