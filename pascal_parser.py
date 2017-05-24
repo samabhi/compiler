@@ -9,6 +9,9 @@ from keywords import comparison_operators_list
 
 class Parser(object):
     def __init__(self, tokens):
+        # Parameters
+        #   * tokens
+        #       - a list of token objects
 
         self.clues_list = tokens
         self.clues_array_index = 0
@@ -20,7 +23,250 @@ class Parser(object):
         self.current_token = self.clues_list[self.clues_array_index]
         self.clues_array_index += 1
 
+    # ################################################################################################
+
+    # Statement Handler Functions
+
+    # ################################################################################################
+    # Handles case statement
+    def case_statement(self):
+
+        self.match("TK_CASE")
+        self.match("TK_LEFT_PAR")
+        checker = self.current_token
+        exp_1 = self.expressions()
+        if exp_1 == "TK_REAL":
+            raise TypeError('Real type not allowed for case: ' + exp_1)
+        self.match("TK_RIGHT_PAR")
+        self.match("TK_OF")
+        hole_list = []
+        while (self.current_token[1] == "TK_INTEGER" or
+                       self.current_token[1] == "TK_CHAR" or
+                       self.current_token[1] == "TK_BOOL"):
+            exp_2 = self.expressions()
+            self.emit("TK_EQUAL", exp_1, exp_2)
+            self.match("TK_COLON")
+
+            self.make_opcode(Opcodes.jfalse)
+            hole = self.instruction_indicator
+            self.make_address(0)
+            self.statements()
+
+            self.make_opcode(Opcodes.jump)
+            hole_list.append(self.instruction_indicator)
+            self.make_address(0)
+
+            save = self.instruction_indicator
+            self.instruction_indicator = hole
+            self.make_address(save)
+            self.instruction_indicator = save
+            if self.current_token[1] != "TK_END":
+                symbol = self.find_name(checker[0])
+                if symbol is not None:
+                    self.make_opcode(Opcodes.push)
+                    self.make_address(symbol.data_indicator)
+
+        self.match("TK_END")
+        self.match("TK_SEMICOLON")
+        save = self.instruction_indicator
+        for hole in hole_list:
+            self.instruction_indicator = hole
+            self.make_address(save)
+        self.instruction_indicator = save
+
+    def for_statement(self):
+
+        self.match("TK_FOR")
+        value_of = self.current_token[0]
+        self.statements()
+        target = self.instruction_indicator
+        symbol = self.find_name(value_of)
+
+        self.match("TK_TO")
+        self.make_opcode(Opcodes.push)
+        self.make_address(symbol.data_indicator)
+        self.make_opcode(Opcodes.pushi)
+        self.make_address(self.current_token[0])
+        self.make_opcode(Opcodes.lte)
+        self.match("TK_INTEGER")
+        self.match("TK_DO")
+        self.make_opcode(Opcodes.jfalse)
+        hole = self.instruction_indicator
+        self.make_address(0)
+
+        self.match("TK_BEGIN")
+        self.statements()
+        self.match("TK_END")
+        self.match("TK_SEMICOLON")
+
+        self.make_opcode(Opcodes.push)
+        self.make_address(symbol.data_indicator)
+        self.make_opcode(Opcodes.pushi)
+        self.make_address(1)
+        self.make_opcode(Opcodes.add)
+        self.make_opcode(Opcodes.pop)
+        self.make_address(symbol.data_indicator)
+        self.make_opcode(Opcodes.jump)
+        self.make_address(target)
+        save = self.instruction_indicator
+        self.instruction_indicator = hole
+        self.make_address(save)
+        self.instruction_indicator = save
+
+    # Handles if-else control statements
+    def if_statement(self):
+        self.match("TK_IF")
+        self.condition()
+        self.match("TK_THEN")
+        self.make_opcode(Opcodes.jfalse)
+        hole_one = self.instruction_indicator
+        self.make_address(0)
+        self.statements()
+        if self.current_token[1] == "TK_ELSE":
+            self.make_opcode(Opcodes.jump)
+            hole_two = self.instruction_indicator
+            self.make_address(0)
+            save = self.instruction_indicator
+            self.instruction_indicator = hole_one
+            self.make_address(save)
+            self.instruction_indicator = save
+            hole_one = hole_two
+            self.match("TK_ELSE")
+            self.statements()
+        save = self.instruction_indicator
+        self.instruction_indicator = hole_one
+        self.make_address(save)
+        self.instruction_indicator = save
+
+    # handles while loops
+    def while_loops(self):
+        self.match("TK_WHILE")
+        target = self.instruction_indicator
+        self.condition()
+        self.match("TK_DO")
+
+        self.match("TK_BEGIN")
+        self.make_opcode(Opcodes.jfalse)
+        hole = self.instruction_indicator
+        self.make_address(0)
+
+        self.statements()
+
+        self.make_opcode(Opcodes.jump)
+        self.make_address(target)
+
+        save = self.instruction_indicator
+        self.instruction_indicator = hole
+        self.make_address(save)
+        self.instruction_indicator = save
+
+        self.match("TK_END")
+        self.match("TK_SEMICOLON")
+
+    # handles repeat-until loops
+    def repeat_statement(self):
+        self.match("TK_REPEAT")
+        target = self.instruction_indicator
+        self.statements()
+        self.match("TK_UNTIL")
+        self.condition()
+        self.make_opcode(Opcodes.jfalse)
+        self.make_address(target)
+
+    # generates machine instructions to write to standard output
+    def writeln(self):
+        self.match("TK_WRITELN")
+        self.match("TK_LEFT_PAR")
+
+        while True:
+            if self.current_token[1] == "TK_ID":
+                symbol = self.find_name(self.current_token[0])
+                if hasattr(symbol, "assignment_type"):
+                    self.match("TK_ID")
+                    self.access_array(symbol)
+                    self.make_opcode(Opcodes.array_print)
+                    continue
+                else:
+                    datatype1 = self.expressions()
+                if datatype1 == "TK_INTEGER":
+                    self.make_opcode(Opcodes.print_int)
+                    self.make_address(symbol.data_indicator)
+                elif datatype1 == "TK_ARRAY":
+                    self.make_opcode(Opcodes.get)
+                elif datatype1 == "TK_REAL":
+                    self.make_opcode(Opcodes.print_real)
+                    self.make_address(symbol.data_indicator)
+                else:
+                    raise TypeError("Writeln does not support type: " + str(symbol))
+            if self.current_token[1] == "TK_COMMA":
+                self.match("TK_COMMA")
+            elif self.current_token[1] == "TK_RIGHT_PAR":
+                self.match("TK_RIGHT_PAR")
+                self.make_opcode(Opcodes.newline)
+                return
+            else:
+                raise SyntaxError("Expected right paren or comma. Found: " + self.current_token[1])
+
+    # identifies the type of statement. Based on context free grammar
+    def statements(self):
+        while self.current_token[1] != "TK_END":
+            if self.current_token[1] == "TK_ID":
+                self.assignment_statement()
+            elif self.current_token[1] == "TK_SEMICOLON":
+                self.match("TK_SEMICOLON")
+            elif self.current_token[1] == "TK_COMMENT":
+                self.match("TK_COMMENT")
+            elif self.current_token[1] == "TK_WRITELN":
+                self.writeln()
+            elif self.current_token[1] == "TK_REPEAT":
+                self.repeat_statement()
+            elif self.current_token[1] == "TK_WHILE":
+                self.while_loops()
+            elif self.current_token[1] == "TK_IF":
+                self.if_statement()
+            elif self.current_token[1] == "TK_FOR":
+                self.for_statement()
+            elif self.current_token[1] == "TK_CASE":
+                self.case_statement()
+            else:
+                # print "statements function: Can't match current token ", self.current_token
+                return
+
     # ####################################################################################
+
+    def begin(self):
+        # Parameters : None
+
+        # check for comments at the beginning of the file
+        while self.current_token[1] == "TK_COMMENT":
+            self.match("TK_COMMENT")
+
+        # check for basic pascal program syntax of 'begin' and 'end.'
+        self.match("TK_BEGIN")
+        self.statements()
+        self.match("TK_END")
+        self.match("TK_DOT")
+        self.match("TK_EOF")
+        self.make_opcode(Opcodes.halt)
+
+    def start_parser(self):
+        # Parameters : None
+
+        # Checks for the starting syntax of a pascal program
+        self.match("TK_PROGRAM")
+        self.match("TK_ID")
+        self.match("TK_SEMICOLON")
+
+        # if the first token is Tk_VAR then call declarations to make variable declarations
+        if self.current_token[1] == "TK_VAR":
+            self.declarations()
+        else:
+            self.begin()
+
+        return self.bytes_list
+
+    # #######################################################################################
+
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
         op_Opcode = arth_op
         if Aux.check_int_int(datatype_1, datatype_2):
@@ -51,7 +297,7 @@ class Parser(object):
     def checkDataTypesForLogical(self, datatype_1, datatype_2, operation):
         dict_op = comp_op
 
-        if self.ifEqual(datatype_1, datatype_2):
+        if Aux.check_data(datatype_1, datatype_2):
             self.make_opcode(dict_op.get(operation))
         elif Aux.check_int_real(datatype_1, datatype_2):
             self.make_opcode(Opcodes.xchg, Opcodes.cvr, Opcodes.xchg, dict_op.get(operation))
@@ -147,104 +393,10 @@ class Parser(object):
         if self.current_token[1] == "TK_VAR":
             self.declarations()
         else:
-            # declaratiosn ended
-            self.begin()
-            # ####################################################################################
-
-    # see if the current token is already stored in the symbol table
-    # Returns: symbol object
-    def find_name(self, label):
-
-        for obj in self.symbol_table:
-            if obj.label == label:
-                return obj
-
-        return None
-
-    # ####################################################################################
-    # see if the current token matches with input
-    def match(self, tk_):
-
-        if tk_ == self.current_token[1]:
-            if self.current_token[1] != "TK_EOF":
-                self.current_token = self.clues_list[self.clues_array_index]
-                self.clues_array_index += 1
-        else:
-            raise IndexError("Doesn't Match" + " " + tk_ + " " + self.current_token[1])
-
-            # #####################################################################################
-
-    # starting the parser
-    def start_parser(self):
-
-        self.match("TK_PROGRAM")
-        self.match("TK_ID")
-        self.match("TK_SEMICOLON")
-
-        if self.current_token[1] == "TK_VAR":
-            self.declarations()
-        else:
+            # declarations ended
             self.begin()
 
-        return self.bytes_list
-
-    # #######################################################################################
-    # Handles "Begin" begin keyword in pascal
-    def begin(self):
-        while self.current_token[1] == "TK_COMMENT":
-            self.match("TK_COMMENT")
-        self.match("TK_BEGIN")
-        self.statements()
-        self.match("TK_END")
-        self.match("TK_DOT")
-        self.match("TK_EOF")
-        self.make_opcode(Opcodes.halt)
-
-        # #######################################################################################
-
-    # identifies the type of statement. Based on context free grammar
-    def statements(self):
-        while self.current_token[1] != "TK_END":
-            if self.current_token[1] == "TK_ID":
-                self.assignment_statement()
-            elif self.current_token[1] == "TK_SEMICOLON":
-                self.match("TK_SEMICOLON")
-            elif self.current_token[1] == "TK_COMMENT":
-                self.match("TK_COMMENT")
-            elif self.current_token[1] == "TK_WRITELN":
-                self.writeln()
-            elif self.current_token[1] == "TK_REPEAT":
-                self.repeat_statement()
-            elif self.current_token[1] == "TK_WHILE":
-                self.while_loops()
-            elif self.current_token[1] == "TK_IF":
-                self.if_statement()
-            elif self.current_token[1] == "TK_FOR":
-                self.for_statement()
-            elif self.current_token[1] == "TK_CASE":
-                self.case_statement()
-            else:
-                # print "statements function: Can't match current token ", self.current_token
-                return
-
-                # ###############################################################################################
-
-    # generates one byte opcode using the instruction pointer and then increments the instruction pointer
-    def make_opcode(self, *ops):
-        for op in ops:
-            self.bytes_list[self.instruction_indicator] = op
-            self.instruction_indicator += 1
-
-            # ################################################################################################
-
-    # packs a target value into 4 bytes, using the instruction pointer and increments the instruction pointer
-    def make_address(self, target):
-
-        bytearray_list = compress_bytes(target)
-
-        for byte in bytearray_list:
-            self.bytes_list[self.instruction_indicator] = byte
-            self.instruction_indicator += 1
+    # ###############################################################################################
 
             # #################################################################################################
 
@@ -273,14 +425,6 @@ class Parser(object):
             data_type2 = self.factor()
             data_type1 = self.emit(token_op, data_type1, data_type2)
         return data_type1
-
-    # #############################################################################################
-    def ifEqual(self, dat1, dat2):
-        if dat1 == dat2:
-            return True
-        else:
-            return False
-
 
             # ##############################################################################################
 
@@ -332,183 +476,6 @@ class Parser(object):
         else:
             pass
 
-            # #########################################################################################
-
-    # generates machine instructions to write to standard output
-    def writeln(self):
-        self.match("TK_WRITELN")
-        self.match("TK_LEFT_PAR")
-
-        while True:
-            if self.current_token[1] == "TK_ID":
-                symbol = self.find_name(self.current_token[0])
-                if hasattr(symbol, "assignment_type"):
-                    self.match("TK_ID")
-                    self.access_array(symbol)
-                    self.make_opcode(Opcodes.array_print)
-                    continue
-                else:
-                    datatype1 = self.expressions()
-                if datatype1 == "TK_INTEGER":
-                    self.make_opcode(Opcodes.print_int)
-                    self.make_address(symbol.data_indicator)
-                elif datatype1 == "TK_ARRAY":
-                    self.make_opcode(Opcodes.get)
-                elif datatype1 == "TK_REAL":
-                    self.make_opcode(Opcodes.print_real)
-                    self.make_address(symbol.data_indicator)
-                else:
-                    raise TypeError("Writeln does not support type: " + str(symbol))
-            if self.current_token[1] == "TK_COMMA":
-                self.match("TK_COMMA")
-            elif self.current_token[1] == "TK_RIGHT_PAR":
-                self.match("TK_RIGHT_PAR")
-                self.make_opcode(Opcodes.newline)
-                return
-            else:
-                raise SyntaxError("Expected right paren or comma. Found: " + self.current_token[1])
-
-                # ###################################################################################################
-
-    # handles while loops
-    def while_loops(self):
-        self.match("TK_WHILE")
-        target = self.instruction_indicator
-        self.condition()
-        self.match("TK_DO")
-
-        self.match("TK_BEGIN")
-        self.make_opcode(Opcodes.jfalse)
-        hole = self.instruction_indicator
-        self.make_address(0)
-
-        self.statements()
-
-        self.make_opcode(Opcodes.jump)
-        self.make_address(target)
-
-        save = self.instruction_indicator
-        self.instruction_indicator = hole
-        self.make_address(save)
-        self.instruction_indicator = save
-
-        self.match("TK_END")
-        self.match("TK_SEMICOLON")
-
-    # #####################################################################################################
-    # Handles if-else control statements
-    def if_statement(self):
-        self.match("TK_IF")
-        self.condition()
-        self.match("TK_THEN")
-        self.make_opcode(Opcodes.jfalse)
-        hole_one = self.instruction_indicator
-        self.make_address(0)
-        self.statements()
-        if self.current_token[1] == "TK_ELSE":
-            self.make_opcode(Opcodes.jump)
-            hole_two = self.instruction_indicator
-            self.make_address(0)
-            save = self.instruction_indicator
-            self.instruction_indicator = hole_one
-            self.make_address(save)
-            self.instruction_indicator = save
-            hole_one = hole_two
-            self.match("TK_ELSE")
-            self.statements()
-        save = self.instruction_indicator
-        self.instruction_indicator = hole_one
-        self.make_address(save)
-        self.instruction_indicator = save
-
-    # #########################################################################################
-    # Handles for loops
-    # Returns: Nothing
-    def for_statement(self):
-
-        self.match("TK_FOR")
-        value_of = self.current_token[0]
-        self.statements()
-        target = self.instruction_indicator
-        symbol = self.find_name(value_of)
-
-        self.match("TK_TO")
-        self.make_opcode(Opcodes.push)
-        self.make_address(symbol.data_indicator)
-        self.make_opcode(Opcodes.pushi)
-        self.make_address(self.current_token[0])
-        self.make_opcode(Opcodes.lte)
-        self.match("TK_INTEGER")
-        self.match("TK_DO")
-        self.make_opcode(Opcodes.jfalse)
-        hole = self.instruction_indicator
-        self.make_address(0)
-
-        self.match("TK_BEGIN")
-        self.statements()
-        self.match("TK_END")
-        self.match("TK_SEMICOLON")
-
-        self.make_opcode(Opcodes.push)
-        self.make_address(symbol.data_indicator)
-        self.make_opcode(Opcodes.pushi)
-        self.make_address(1)
-        self.make_opcode(Opcodes.add)
-        self.make_opcode(Opcodes.pop)
-        self.make_address(symbol.data_indicator)
-        self.make_opcode(Opcodes.jump)
-        self.make_address(target)
-        save = self.instruction_indicator
-        self.instruction_indicator = hole
-        self.make_address(save)
-        self.instruction_indicator = save
-
-    # #########################################################################################33
-    # Handles case statement
-    def case_statement(self):
-
-        self.match("TK_CASE")
-        self.match("TK_LEFT_PAR")
-        checker = self.current_token
-        exp_1 = self.expressions()
-        if exp_1 == "TK_REAL":
-            raise TypeError('Real type not allowed for case: ' + exp_1)
-        self.match("TK_RIGHT_PAR")
-        self.match("TK_OF")
-        hole_list = []
-        while (self.current_token[1] == "TK_INTEGER" or
-                       self.current_token[1] == "TK_CHAR" or
-                       self.current_token[1] == "TK_BOOL"):
-            exp_2 = self.expressions()
-            self.emit("TK_EQUAL", exp_1, exp_2)
-            self.match("TK_COLON")
-
-            self.make_opcode(Opcodes.jfalse)
-            hole = self.instruction_indicator
-            self.make_address(0)
-            self.statements()
-
-            self.make_opcode(Opcodes.jump)
-            hole_list.append(self.instruction_indicator)
-            self.make_address(0)
-
-            save = self.instruction_indicator
-            self.instruction_indicator = hole
-            self.make_address(save)
-            self.instruction_indicator = save
-            if self.current_token[1] != "TK_END":
-                symbol = self.find_name(checker[0])
-                if symbol is not None:
-                    self.make_opcode(Opcodes.push)
-                    self.make_address(symbol.data_indicator)
-
-        self.match("TK_END")
-        self.match("TK_SEMICOLON")
-        save = self.instruction_indicator
-        for hole in hole_list:
-            self.instruction_indicator = hole
-            self.make_address(save)
-        self.instruction_indicator = save
 
     # #####################################################################################################
     # Gets range of access for an array
@@ -663,14 +630,42 @@ class Parser(object):
         else:
             raise TypeError("Expected condition, but instead received: " + self.current_token[1])
 
-            # ################################################################################################
+    # ####################################################################################
 
-    # handles repeat-until loops
-    def repeat_statement(self):
-        self.match("TK_REPEAT")
-        target = self.instruction_indicator
-        self.statements()
-        self.match("TK_UNTIL")
-        self.condition()
-        self.make_opcode(Opcodes.jfalse)
-        self.make_address(target)
+    # Helper functions
+
+    # ####################################################################################
+
+    def make_opcode(self, *ops):
+        for op in ops:
+            self.bytes_list[self.instruction_indicator] = op
+            self.instruction_indicator += 1
+
+    def make_address(self, target):
+
+        bytearray_list = compress_bytes(target)
+
+        for byte in bytearray_list:
+            self.bytes_list[self.instruction_indicator] = byte
+            self.instruction_indicator += 1
+
+    def find_name(self, label):
+        """
+        :rtype: symbol object
+        """
+        for obj in self.symbol_table:
+            if obj.label == label:
+                return obj
+
+        return None
+
+    def match(self, tk_):
+        """
+        Checks if current token matches with input and then updates the array index
+        """
+        if tk_ == self.current_token[1]:
+            if self.current_token[1] != "TK_EOF":
+                self.current_token = self.clues_list[self.clues_array_index]
+                self.clues_array_index += 1
+        else:
+            raise IndexError("Doesn't Match" + " " + tk_ + " " + self.current_token[1])
