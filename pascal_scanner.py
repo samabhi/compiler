@@ -1,16 +1,16 @@
 # -*- pascal_scanner.py -*-
 # Reads a pascal files and returns a list of token objects
 
-#----------------------------------------
+# ----------------------------------------
 #  TODO
-#----------------------------------------
+# ----------------------------------------
 
 # - [done] Scan pascal file
 # - [done] Tokenize program
 # - - [done] Handle alphanumerics
 # - - [done] Handle operators
 # - - [done] Handle quotes
-# - - [] Handle comments
+# - - [done] Handle comments
 
 import keywords
 from tokens import Token
@@ -59,6 +59,189 @@ class Scanner(object):
 
     # #############################################################################
 
+    # Scanner
+
+    # #############################################################################
+
+    def scan(self):
+        while self.array_index < len(self.pascal):
+
+            if self.pascal[self.array_index].isalpha():
+                self.token_lst.append(self.caseLetter())
+            elif self.pascal[self.array_index].isdigit():
+                self.token_lst.append(self.caseNum())
+            elif self.pascal[self.array_index] == " ":
+                self.array_index += 1
+                self.token.set_colNumber(self.token.get_colNumber() + 1)
+            elif self.pascal[self.array_index] == "\n":
+                self.array_index += 1
+                self.token.set_rowNumber(self.token.get_rowNumber() + 1)
+                self.token.set_colNumber(0)
+            elif self.pascal[self.array_index] in self.supported_operators:
+                self.token_lst.append(self.caseOperator())
+            elif self.pascal[self.array_index] == "\'":
+                self.token_lst.append(self.caseQuote())
+            else:
+                raise TypeError("Can't identify char: " + self.pascal[self.array_index])
+
+        self.token_lst.append(self.token.buildToken("EOF", keywords.defined_keywords_list.get("eof").upper()))
+
+        return self.token_lst
+
+    # #############################################################################
+
+    # Case functions follow
+
+    # #############################################################################
+
+    def caseLetter(self):
+        # Parameters
+        # Returns: A token which was returned by the helper function
+
+        tempWord = ""
+        # Loop through each char
+        for char in self.pascal[self.array_index:]:
+            # create string
+            if char.isalpha() or char.isdigit():
+                tempWord += char
+            else:
+                return self.help_caseLetter(tempWord)
+
+    def caseNum(self):
+        # Parameters
+        # Returns: A token which was returned by the helper function
+        tempDigit = ""
+
+        while self.array_index < len(self.pascal):
+            # create string of numbers
+            if self.pascal[self.array_index].isdigit() or self.pascal[self.array_index] == '.' or self.pascal[
+                self.array_index] == 'e':
+                tempDigit += self.pascal[self.array_index]
+                self.array_index += 1
+                self.token.set_colNumber(self.token.get_colNumber() + 1)
+            else:
+                return self.help_caseNum(tempDigit)
+
+    def caseOperator(self):
+        # Parameters
+        # Returns: A token which was returned by one of the helper functions
+
+        tempOperator = ""
+
+        while self.array_index < len(self.pascal):
+
+            tempOperator += self.pascal[self.array_index]
+
+            # check if just colon or really assignment
+            if self.pascal[self.array_index] == ":":
+                return self.help_one_caseOperator(tempOperator)
+
+            # check if less than or not equal
+            elif self.pascal[self.array_index] == "<":
+                return self.help_two_caseOperator(tempOperator)
+
+            # check if less than or lte
+            elif self.pascal[self.array_index] == "<":
+                return self.help_one_caseOperator(tempOperator)
+
+            # if greater than or gte
+            elif self.pascal[self.array_index] == ">":
+                return self.help_one_caseOperator(tempOperator)
+
+            # check if a comment
+            elif self.pascal[self.array_index] == "(":
+                return self.help_three_caseOperator(tempOperator)
+
+            elif self.pascal[self.array_index] == "/":
+                self.array_index += 1
+                self.token.set_colNumber(self.token.get_colNumber() + 1)
+                return self.opTokenBuilder(tempOperator)
+
+            else:
+                self.array_index += 1
+                self.token.set_colNumber(self.token.get_colNumber() + 1)
+
+                return self.opTokenBuilder(tempOperator)
+
+    def caseComment(self):
+        # Parameters
+        # Returns: A comment token
+
+        tempComment = ""
+
+        # comment type (*...*)
+        if self.pascal[self.array_index] == "(" and self.pascal[self.array_index + 1] == "*":
+
+            tempComment += self.pascal[self.array_index] + self.pascal[self.array_index + 1]
+            self.array_index += 2
+            self.token.set_colNumber(self.token.get_colNumber() + 2)
+
+            while self.array_index < len(self.pascal):
+
+                # check if comment is ending
+                if self.pascal[self.array_index] == "*" and self.pascal[self.array_index + 1] == ")":
+                    tempComment += self.pascal[self.array_index] + self.pascal[self.array_index + 1]
+                    self.array_index += 2
+                    self.token.set_colNumber(self.token.get_colNumber() + 2)
+                    return self.token.buildToken(tempComment, self.reserved_prefix + "COMMENT")
+                else:
+                    tempComment += self.pascal[self.array_index]
+                    self.help_caseComment(tempComment)
+
+            # throw error if file ends before comment ends
+            if self.array_index >= len(self.pascal):
+                return "ERROR: End of file before comment completed"
+
+    def caseQuote(self):
+        # Parameters
+        # Returns: A token of type string which was returned by the helper function
+
+        tempString = ""
+
+        tempString += self.pascal[self.array_index]
+        self.array_index += 1
+        self.token.set_colNumber(self.token.get_colNumber() + 1)
+
+        while self.array_index < len(self.pascal):
+            self.help_caseQuote(tempString)
+
+        # throw an error if the file ends before the string is completed
+        if self.array_index >= len(self.pascal):
+            return "ERROR: End of file before string completed"
+
+    # #############################################################################
+
+    # Scanner
+
+    # #############################################################################
+
+    def scan(self):
+        while self.array_index < len(self.pascal):
+
+            if self.pascal[self.array_index].isalpha():
+                self.token_lst.append(self.caseLetter())
+            elif self.pascal[self.array_index].isdigit():
+                self.token_lst.append(self.caseNum())
+            elif self.pascal[self.array_index] == " ":
+                self.array_index += 1
+                self.token.set_colNumber(self.token.get_colNumber() + 1)
+            elif self.pascal[self.array_index] == "\n":
+                self.array_index += 1
+                self.token.set_rowNumber(self.token.get_rowNumber() + 1)
+                self.token.set_colNumber(0)
+            elif self.pascal[self.array_index] in self.supported_operators:
+                self.token_lst.append(self.caseOperator())
+            elif self.pascal[self.array_index] == "\'":
+                self.token_lst.append(self.caseQuote())
+            else:
+                raise TypeError("Can't identify char: " + self.pascal[self.array_index])
+
+        self.token_lst.append(self.token.buildToken("EOF", keywords.defined_keywords_list.get("eof").upper()))
+
+        return self.token_lst
+
+    # #############################################################################
+
     # Helper functions follow
 
     # #############################################################################
@@ -78,7 +261,6 @@ class Scanner(object):
         # if not then it's a string literal
         else:
             return self.tokenBuilder(tempWord, "id")
-
 
     def help_caseNum(self, tempDigit):
         # Parameters
@@ -167,7 +349,7 @@ class Scanner(object):
     def help_caseQuote(self, tempString):
         # Parameters
         #   * tempString
-        #       - a value that is an string
+        #       - a value that is a string
         # Returns: A token with a string data type
 
         # Check if it is the closing '
@@ -190,173 +372,16 @@ class Scanner(object):
 
             self.array_index += 1
 
-            # ##########################################################################################################################################
+    # #########################
 
     def help_caseComment(self, tempComment):
+        # Parameters
+        #   * tempComment
+        #       - a value that is a comment
+
         if self.pascal[self.array_index] == "\n":
             self.token.set_colNumber(self.token.get_colNumber() + 0)
             self.token.set_rowNumber(self.token.get_rowNumber() + 1)
         else:
             self.token.set_colNumber(self.token.get_colNumber() + 1)
             self.array_index += 1
-
-            # ##########################################################################################################################################
-
-    #  Goes through cases involving alpha - string literal or keyword
-    # Returns: A built word that is a string literal or a keyword
-    def caseLetter(self):
-        tempWord = ""
-        # Loop through each char
-        for char in self.pascal[self.array_index:]:
-            # create string
-            if char.isalpha() or char.isdigit():
-                tempWord += char
-            else:
-                return self.help_caseLetter(tempWord)
-
-                # ##########################################################################################################################################
-                #   # Reading in Numbers
-
-    # Returns: Either an integer, a real, or a range or an error
-
-    def caseNum(self):
-        tempDigit = ""
-
-        while self.array_index < len(self.pascal):
-            # create string of numbers
-            if self.pascal[self.array_index].isdigit() or self.pascal[self.array_index] == '.' or self.pascal[
-                self.array_index] == 'e':
-                tempDigit += self.pascal[self.array_index]
-                self.array_index += 1
-                self.token.set_colNumber(self.token.get_colNumber() + 1)
-            else:
-                return self.help_caseNum(tempDigit)
-
-                # ##########################################################################################################################################
-
-    # Keeps tracks of quotes, and ensures that they are being used properly in the file
-    # Returns: String token or an error if quotes are improperly handled
-    def caseQuote(self):
-
-        tempString = ""
-
-        tempString += self.pascal[self.array_index]
-        self.array_index += 1
-        self.token.set_colNumber(self.token.get_colNumber() + 1)
-
-        while self.array_index < len(self.pascal):
-            self.help_caseQuote(tempString)
-
-        # throw an error if the file ends before the string is completed
-        if self.array_index >= len(self.pascal):
-            return "ERROR: End of file before string completed"
-
-            # ##########################################################################################################################################
-
-    # Handles various operators_KeyValue_list, as well as checking for special condition (Ex: Operators involving multple characters such as
-    # assignment ':=' )
-    # Returns the operator token
-    def caseOperator(self):
-
-        tempOperator = ""
-
-        while self.array_index < len(self.pascal):
-
-            tempOperator += self.pascal[self.array_index]
-
-            # the assignment operators_KeyValue_list has to be checked specifically since both of its chars can also be operators_KeyValue_list on their own
-            if self.pascal[self.array_index] == ":":
-                return self.help_one_caseOperator(tempOperator)
-
-            # the not equal has to be checked specifically since both of its chars can also be operators_KeyValue_list on their own
-            elif self.pascal[self.array_index] == "<":
-                return self.help_two_caseOperator(tempOperator)
-
-            # the less than or equal to operator has to be checked specifically since both of its chars can also be operators_KeyValue_list on their own
-            elif self.pascal[self.array_index] == "<":
-                return self.help_one_caseOperator(tempOperator)
-
-            # the greater than or equal to operator has to be checked specifically since both of its chars can also be operators_KeyValue_list on their own
-            elif self.pascal[self.array_index] == ">":
-                return self.help_one_caseOperator(tempOperator)
-
-
-            elif self.pascal[self.array_index] == "(":
-                # check if ( is an operator in this case or the beginning of a comment
-                return self.help_three_caseOperator(tempOperator)
-
-            elif self.pascal[self.array_index] == "/":
-                # Check if / is an operator in this case of the beginning of a comment
-                self.array_index += 1
-                self.token.set_colNumber(self.token.get_colNumber() + 1)
-                return self.opTokenBuilder(tempOperator)
-
-            # the rest are just normal operators_KeyValue_list
-            else:
-                self.array_index += 1
-                self.token.set_colNumber(self.token.get_colNumber() + 1)
-
-                return self.opTokenBuilder(tempOperator)
-
-                # ##########################################################################################################################################
-
-    # Goes through the file, and checks for each possible case that the chars it is encountering can fall under
-    # Returns token_lst which consist of value, datatype, row_number number and column number or
-    # an error if it cannot identify the character
-    def scan(self):
-        while self.array_index < len(self.pascal):
-
-            if self.pascal[self.array_index].isalpha():
-                self.token_lst.append(self.caseLetter())
-            elif self.pascal[self.array_index].isdigit():
-                self.token_lst.append(self.caseNum())
-            elif self.pascal[self.array_index] == " ":
-                self.array_index += 1
-                self.token.set_colNumber(self.token.get_colNumber() + 1)
-            elif self.pascal[self.array_index] == "\n":
-                self.array_index += 1
-                self.token.set_rowNumber(self.token.get_rowNumber() + 1)
-                self.token.set_colNumber(0)
-            elif self.pascal[self.array_index] in self.supported_operators:
-                self.token_lst.append(self.caseOperator())
-            elif self.pascal[self.array_index] == "{":
-                self.token_lst.append(self.caseComment())
-            elif self.pascal[self.array_index] == "\'":
-                self.token_lst.append(self.caseQuote())
-            else:
-                raise TypeError("Can't identify char: " + self.pascal[self.array_index])
-
-        self.token_lst.append(self.token.buildToken("EOF", keywords.defined_keywords_list.get("eof").upper()))
-
-        return self.token_lst
-
-    # ##########################################################################################################################################
-
-    # Handles the various formats of commenting allowed in Pascal
-    # Returns comment token or an error if file is improperly commented
-    def caseComment(self):
-
-        tempComment = ""
-
-        # comment type (*...*)
-        if self.pascal[self.array_index] == "(" and self.pascal[self.array_index + 1] == "*":
-
-            tempComment += self.pascal[self.array_index] + self.pascal[self.array_index + 1]
-            self.array_index += 2
-            self.token.set_colNumber(self.token.get_colNumber() + 2)
-
-            while self.array_index < len(self.pascal):
-
-                # check if comment is ending
-                if self.pascal[self.array_index] == "*" and self.pascal[self.array_index + 1] == ")":
-                    tempComment += self.pascal[self.array_index] + self.pascal[self.array_index + 1]
-                    self.array_index += 2
-                    self.token.set_colNumber(self.token.get_colNumber() + 2)
-                    return self.token.buildToken(tempComment, self.reserved_prefix + "COMMENT")
-                else:
-                    tempComment += self.pascal[self.array_index]
-                    self.help_caseComment(tempComment)
-
-            # throw error if file ends before comment ends
-            if self.array_index >= len(self.pascal):
-                return "ERROR: End of file before comment completed"
