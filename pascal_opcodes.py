@@ -6,7 +6,7 @@ class Opcodes(object):
         add, xchg, cvr, fadd, sub, fsub, divide, multiply, fmultiply, logical_or, greater_than, less_than,\
         equal, not_equal, gte, lte, jfalse, jump, put, get, array_print = range(31)
 
-op_Opcodes = {
+arth_op = {
     "addition" : Opcodes.add,
     "faddition": Opcodes.fadd,
     "fsubtraction": Opcodes.fsub,
@@ -15,6 +15,15 @@ op_Opcodes = {
     "fmultiplication": Opcodes.fmultiply,
     "division": Opcodes.divide,
     "fdivision": Opcodes.divide,
+    }
+
+comp_op = {
+    "equal": Opcodes.equal,
+    "not_equal":Opcodes.not_equal,
+    "less_than": Opcodes.less_than,
+    "greater_than": Opcodes.greater_than,
+    "lte": Opcodes.lte,
+    "gte": Opcodes.gte
     }
 
 

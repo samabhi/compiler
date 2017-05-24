@@ -88,3 +88,12 @@ operators_KeyValue_list = {
             "]": "RIGHT_BRACKET"
         }
 
+comparison_operators_list = [
+    "TK_EQUAL",
+    "TK_NOT_EQUAL",
+    "TK_GREATER_THAN",
+    "TK_LESS_THAN",
+    "TK_GREATER_THAN_EQUAL",
+    "TK_LESS_THAN_EQUAL"
+]
+

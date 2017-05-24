@@ -1,7 +1,8 @@
 #this code generates machine code from each of the user program instructions
-from pascal_opcodes import Opcodes, compress_bytes, op_Opcodes
+from pascal_opcodes import Opcodes, compress_bytes, arth_op, comp_op
 from Symbol import symbol
 import auxiliary_parser_functions as Aux
+from keywords import comparison_operators_list
 
 
 class Parser(object):
@@ -46,7 +47,7 @@ class Parser(object):
             return "TK_REAL"
 
     def checkDataTypesForLogical(self, datatype_1, datatype_2, operation):
-        dict_op = {"equal": Opcodes.equal, "not_equal":Opcodes.not_equal, "less_than": Opcodes.less_than, "greater_than": Opcodes.greater_than, "lte": Opcodes.lte, "gte": Opcodes.gte}
+        dict_op = comp_op
 
         if self.ifEqual(datatype_1, datatype_2):
                 self.make_opcode(dict_op.get(operation))
@@ -637,47 +638,7 @@ class Parser(object):
         # value = self.current_token[0]
 
         # Equal '==' Condition
-        if self.current_token[1] == "TK_EQUAL":
-            data_type = self.current_token[1]
-            self.match(data_type)
-            term2 = self.term()
-            term1 = self.emit(data_type, term1, term2)
-            return term1
-
-        # Not equal  '<>' condition
-        elif self.current_token[1] == "TK_NOT_EQUAL":
-            data_type = self.current_token[1]
-            self.match(data_type)
-            term2 = self.term()
-            term1 = self.emit(data_type, term1, term2)
-            return term1
-
-        # Greater than '>' condition
-        elif self.current_token[1] == "TK_GREATER_THAN":
-            data_type = self.current_token[1]
-            self.match(data_type)
-            term2 = self.term()
-            term1 = self.emit(data_type, term1, term2)
-            return term1
-
-        # Less than '<' condition
-        elif self.current_token[1] == "TK_LESS_THAN":
-            data_type = self.current_token[1]
-            self.match(data_type)
-            term2 = self.term()
-            term1 = self.emit(data_type, term1, term2)
-            return term1
-
-        # Greater than or equal '>=' condition
-        elif self.current_token[1] == "TK_GREATER_THAN_EQUAL":
-            data_type = self.current_token[1]
-            self.match(data_type)
-            term2 = self.term()
-            term1 = self.emit(data_type, term1, term2)
-            return term1
-
-        # Less than or equal '<=' condition
-        elif self.current_token[1] == "TK_LESS_THAN_EQUAL":
+        if self.current_token[1] in comparison_operators_list:
             data_type = self.current_token[1]
             self.match(data_type)
             term2 = self.term()
