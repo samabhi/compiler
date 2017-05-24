@@ -1,4 +1,5 @@
-# assigns values to opcodes. Acts as a enumerator
+# -*- pascal_opcodes.py -*-
+# Assigns values to opcodes
 from enum import IntEnum
 
 
@@ -59,28 +60,31 @@ comp_op = {
 
 
 # ###############################################################################################################
-# Takes a 4 byte value, and returns the actual value. Undoes what decompress_bytes() function does
-# Returns the original value of a 4 byte value
-def decompress_bytes(packed_vals):
-    shift_one = packed_vals[0] << 24
-    shift_two = packed_vals[1] << 16
-    shift_three = packed_vals[2] << 8
-    shift_four = packed_vals[3] << 0
+def decompress_bytes(compressed_version):
+    """
+    Parameters:
+                * compressed_version - a four byte number
+    :rtype: The initial value of the four bit op
+    """
+    shift_one = compressed_version[0] << 24
+    shift_two = compressed_version[1] << 16
+    shift_three = compressed_version[2] << 8
+    shift_four = compressed_version[3] << 0
 
     return shift_one | shift_two | shift_three | shift_four
 
 
 # ###############################################################################################################
-# Takes a value and stores it in 4 bytes
-# Returns: A 4 byte version of a value
-def compress_bytes(starting_value):
-    "Extends intial_val to 4 bytes so that it can be stored in the byte array"
-    starting_value = int(starting_value)
-
-    shift_one = starting_value >> 24
-    shift_two = starting_value >> 16
-    shift_three = starting_value >> 8
-    shift_four = starting_value >> 0
+def compress_bytes(initial):
+    """
+    Parameters:
+                * packed_vals - a four byte number
+    :rtype: A compress 4 bit value of the initial
+    """
+    shift_one = int(initial) >> 24
+    shift_two = int(initial) >> 16
+    shift_three = int(initial) >> 8
+    shift_four = int(initial) >> 0
 
     f = 0xFF
 

@@ -9,9 +9,6 @@ from keywords import comparison_operators_list
 
 class Parser(object):
     def __init__(self, tokens):
-        # Parameters
-        #   * tokens
-        #       - a list of token objects
 
         self.clues_list = tokens
         self.clues_array_index = 0
@@ -23,27 +20,59 @@ class Parser(object):
         self.current_token = self.clues_list[self.clues_array_index]
         self.clues_array_index += 1
 
+    # ####################################################################################
+
+    def begin(self):
+        # Parameters : None
+
+        # check for comments at the beginning of the file
+        while self.current_token[1] == "TK_COMMENT":
+            self.match("TK_COMMENT")
+
+        # check for basic pascal program syntax of 'begin' and 'end.'
+        self.match("TK_BEGIN")
+        self.statements()
+        self.match("TK_END")
+        self.match("TK_DOT")
+        self.match("TK_EOF")
+        self.make_opcode(Opcodes.halt)
+
+    def start_parser(self):
+        # Parameters : None
+
+        # Checks for the starting syntax of a pascal program
+        self.match("TK_PROGRAM")
+        self.match("TK_ID")
+        self.match("TK_SEMICOLON")
+
+        # if file has variable declarations then call declare_var
+        if self.current_token[1] == "TK_VAR":
+            self.declare_var()
+        else:
+            self.begin()
+
+        return self.bytes_list
+
     # ################################################################################################
 
     # Statement Handler Functions
 
     # ################################################################################################
 
-    def case_statement(self):
-
+    def case_state(self):
         self.match("TK_CASE")
         self.match("TK_LEFT_PAR")
         checker = self.current_token
-        exp_1 = self.expressions()
+        exp_1 = self.expr()
         if exp_1 == "TK_REAL":
-            raise TypeError('Type real not accepted for: ' + exp_1)
+            raise TypeError('REAL not accepted here')
         self.match("TK_RIGHT_PAR")
         self.match("TK_OF")
         hole_list = []
         while (self.current_token[1] == "TK_INTEGER" or
                        self.current_token[1] == "TK_CHAR" or
                        self.current_token[1] == "TK_BOOL"):
-            exp_2 = self.expressions()
+            exp_2 = self.expr()
             self.emit("TK_EQUAL", exp_1, exp_2)
             self.match("TK_COLON")
 
@@ -74,8 +103,7 @@ class Parser(object):
             self.make_address(save)
         self.instruction_indicator = save
 
-    def for_statement(self):
-
+    def forloop_state(self):
         self.match("TK_FOR")
         value_of = self.current_token[0]
         self.statements()
@@ -113,31 +141,31 @@ class Parser(object):
         self.make_address(save)
         self.instruction_indicator = save
 
-    def if_statement(self):
+    def ifelse_state(self):
         self.match("TK_IF")
         self.condition()
         self.match("TK_THEN")
         self.make_opcode(Opcodes.jfalse)
-        hole_one = self.instruction_indicator
+        h_one = self.instruction_indicator
         self.make_address(0)
         self.statements()
         if self.current_token[1] == "TK_ELSE":
             self.make_opcode(Opcodes.jump)
-            hole_two = self.instruction_indicator
+            h_two = self.instruction_indicator
             self.make_address(0)
             save = self.instruction_indicator
-            self.instruction_indicator = hole_one
+            self.instruction_indicator = h_one
             self.make_address(save)
             self.instruction_indicator = save
-            hole_one = hole_two
+            h_one = h_two
             self.match("TK_ELSE")
             self.statements()
         save = self.instruction_indicator
-        self.instruction_indicator = hole_one
+        self.instruction_indicator = h_one
         self.make_address(save)
         self.instruction_indicator = save
 
-    def while_loops(self):
+    def whileloop_state(self):
         self.match("TK_WHILE")
         target = self.instruction_indicator
         self.condition()
@@ -161,7 +189,7 @@ class Parser(object):
         self.match("TK_END")
         self.match("TK_SEMICOLON")
 
-    def repeat_statement(self):
+    def controlrepeat_state(self):
         self.match("TK_REPEAT")
         target = self.instruction_indicator
         self.statements()
@@ -170,7 +198,7 @@ class Parser(object):
         self.make_opcode(Opcodes.jfalse)
         self.make_address(target)
 
-    def writeln(self):
+    def write_line(self):
         self.match("TK_WRITELN")
         self.match("TK_LEFT_PAR")
 
@@ -183,13 +211,13 @@ class Parser(object):
                     self.make_opcode(Opcodes.array_print)
                     continue
                 else:
-                    datatype1 = self.expressions()
-                if datatype1 == "TK_INTEGER":
+                    dt_1 = self.expr()
+                if dt_1 == "TK_INTEGER":
                     self.make_opcode(Opcodes.print_int)
                     self.make_address(symbol.data_indicator)
-                elif datatype1 == "TK_ARRAY":
+                elif dt_1 == "TK_ARRAY":
                     self.make_opcode(Opcodes.get)
-                elif datatype1 == "TK_REAL":
+                elif dt_1 == "TK_REAL":
                     self.make_opcode(Opcodes.print_real)
                     self.make_address(symbol.data_indicator)
                 else:
@@ -212,61 +240,28 @@ class Parser(object):
             elif self.current_token[1] == "TK_COMMENT":
                 self.match("TK_COMMENT")
             elif self.current_token[1] == "TK_WRITELN":
-                self.writeln()
+                self.write_line()
             elif self.current_token[1] == "TK_REPEAT":
-                self.repeat_statement()
+                self.controlrepeat_state()
             elif self.current_token[1] == "TK_WHILE":
-                self.while_loops()
+                self.whileloop_state()
             elif self.current_token[1] == "TK_IF":
-                self.if_statement()
+                self.ifelse_state()
             elif self.current_token[1] == "TK_FOR":
-                self.for_statement()
+                self.forloop_state()
             elif self.current_token[1] == "TK_CASE":
-                self.case_statement()
+                self.case_state()
             else:
                 return
 
-    # ####################################################################################
+    # #######################################################################################
 
-    def begin(self):
-        # Parameters : None
-
-        # check for comments at the beginning of the file
-        while self.current_token[1] == "TK_COMMENT":
-            self.match("TK_COMMENT")
-
-        # check for basic pascal program syntax of 'begin' and 'end.'
-        self.match("TK_BEGIN")
-        self.statements()
-        self.match("TK_END")
-        self.match("TK_DOT")
-        self.match("TK_EOF")
-        self.make_opcode(Opcodes.halt)
-
-    def start_parser(self):
-        # Parameters : None
-
-        # Checks for the starting syntax of a pascal program
-        self.match("TK_PROGRAM")
-        self.match("TK_ID")
-        self.match("TK_SEMICOLON")
-
-        # if file has variable declarations then call declare_var
-        if self.current_token[1] == "TK_VAR":
-            self.declare_var()
-        else:
-            self.begin()
-
-        return self.bytes_list
+    # Variable Declaration Functions
 
     # #######################################################################################
 
     def declare_var(self):
-        """
-        """
-
         self.match("TK_VAR")
-
         var_list = []
 
         while self.current_token[1] == "TK_ID":
@@ -301,14 +296,7 @@ class Parser(object):
 
         if data_type == "TK_ARRAY":
             self.match("TK_LEFT_BRACKET")
-            split = self.current_token[0].split('..')
-            if len(split) != 2:
-                raise SyntaxError('Range needs to be like  0..2')
-            lower_bound = int(split[0])
-            upper_bound = int(split[1])
-
-            access_type = "TK_INTEGER"
-
+            access_type, lower_bound, upper_bound = self.get_range_array(self.current_token)
             self.match("TK_RANGE")
             self.match("TK_RIGHT_BRACKET")
             self.match("TK_OF")
@@ -351,7 +339,93 @@ class Parser(object):
         else:
             self.begin()
 
+    def get_range_array(self, token):
+        """
+        Parameters:
+                    * token - a token of type array
+        :rtype: the access_type, lower bound of the array, upper bound of the array
+        """
+        if len(token[0].split('..')) != 2:
+            raise SyntaxError('Range needs to be like  0..2')
+        lower = int(token[0].split('..')[0])
+        upper = int(token[0].split('..')[1])
+        access_type = "TK_INTEGER"
+
+        return access_type, lower, upper
+
+    # ##############################################################################################
+
+    def factor(self):
+        if self.current_token[1] == "TK_INTEGER":
+            self.make_opcode(Opcodes.pushi)
+            self.make_address(self.current_token[0])
+            self.match("TK_INTEGER")
+            return "TK_INTEGER"
+        elif self.current_token[1] == "TK_ID":
+            sym_object = self.find_name(self.current_token[0])
+
+            if sym_object.description == "VARIABLE":
+                self.make_opcode(Opcodes.push)
+                self.make_address(sym_object.data_indicator)
+                self.match("TK_ID")
+                return sym_object.data_type
+            elif sym_object.description == "ARRAY":
+                self.match("TK_ID")
+                self.access_array(sym_object)
+                self.make_opcode(Opcodes.get)
+                return sym_object.assignment_type
+        elif self.current_token[1] == "TK_BOOL":
+            self.make_opcode(Opcodes.pushi)
+            self.make_address(self.current_token[0])
+            self.match("TK_BOOL")
+            return "TK_BOOL"
+        elif self.current_token[1] == "TK_CHAR":
+            self.make_opcode(Opcodes.pushi)
+            self.make_address(self.current_token[0])
+            self.match("TK_CHAR")
+            return "TK_CHAR"
+        elif self.current_token[1] == "TK_REAL":
+            self.make_opcode(Opcodes.pushi)
+            self.make_address(self.current_token[0])
+            self.match("TK_REAL")
+            return "TK_REAL"
+        elif self.current_token[1] == "TK_NOT":
+            self.make_opcode(Opcodes.logical_not)
+            self.match("TK_NOT")
+            return self.factor()
+        elif self.current_token[1] == "TK_LEFT_PAR":
+            self.match("TK_LEFT_PAR")
+            left_par = self.expr()
+            self.match("TK_RIGHT_PAR")
+            return left_par
+        else:
+            pass
+
+    # #####################################################################################################
+
+    def array_assignment(self, symbol):
+        """
+        Parameters:
+                    * symbol - an array
+        :rtype:
+        """
+        self.access_array(symbol)
+        self.match("TK_ASSIGNMENT")
+        exp_1 = self.expr()
+        if exp_1 == symbol.assignment_type:
+            self.make_opcode(Opcodes.put)
+        else:
+            raise TypeError('Mismatched types: ' + exp_1 + ' and ' + symbol.assignment_type)
+
+    #  ####################################################################################################
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
+        """
+        Parameters:
+                    * datatype_1 - the data type of the first operand
+                    * datatype_2 - the data type of the second operand
+                    * operation - the operation to be evaluated
+        :rtype: data type of the result of an operation between datatype_1 and datatype_2
+        """
         op_Opcode = arth_op
         if Aux.check_int_int(datatype_1, datatype_2):
             self.make_opcode(op_Opcode.get(operation))
@@ -379,6 +453,13 @@ class Parser(object):
             return "TK_REAL"
 
     def checkDataTypesForLogical(self, datatype_1, datatype_2, operation):
+        """
+        Parameters:
+                    * datatype_1 - the data type of the first operand
+                    * datatype_2 - the data type of the second operand
+                    * operation - the operation to be evaluated
+        :rtype: data type of the result of an operation between datatype_1 and datatype_2
+        """
         dict_op = comp_op
 
         if Aux.check_data(datatype_1, datatype_2):
@@ -391,89 +472,151 @@ class Parser(object):
             return None
         return "TK_BOOL"
 
-    # ###############################################################################################
+    def emit(self, operation, datatype_1, datatype_2):
+        """
+        Parameters:
+                    * operation - the operation to be evaluated
+                    * datatype_1 - the data type of the first operand
+                    * datatype_2 - the data type of the second operand
+        :rtype: data type of the result of an operation between datatype_1 and datatype_2
+        """
+        if operation == "TK_ADD":
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="addition")
+        elif operation == "TK_SUBTRACT":
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="subtraction")
+        elif operation == "TK_DIVIDE":
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="division")
+        elif operation == "TK_DIV":
+            if datatype_1 == "TK_INTEGER" and datatype_2 == "TK_INTEGER":
+                self.make_opcode(Opcodes.divide)
+                return "TK_INT"
+        elif operation == "TK_MULTIPLY":
+            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="multiplication")
+        elif operation == "TK_OR":
+            if datatype_1 == "TK_BOOL" and datatype_2 == "TK_BOOL":
+                self.make_opcode(Opcodes.logical_or)
+                return "TK_BOOL"
+        elif operation == "TK_EQUAL":
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "equal")
+        elif operation == "TK_NOT_EQUAL":
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "not_equal")
+        elif operation == "TK_LESS_THAN":
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "less_than")
+        elif operation == "TK_LESS_THAN_EQUAL":
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "lte")
+        elif operation == "TK_GREATER_THAN":
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "greater_than")
+        elif operation == "TK_GREATER_THAN_EQUAL":
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "gte")
+        else:
+            raise TypeError("Emit cannot match datatype. Datatypes found: " + datatype_1 + " , " + datatype_2)
 
-    # handles expressions
-    def expressions(self):
+    # ####################################################################################
 
-        data_type1 = self.term()
+    # Helper functions
 
+    # ####################################################################################
+
+    def make_opcode(self, *ops):
+        for op in ops:
+            self.bytes_list[self.instruction_indicator] = op
+            self.instruction_indicator += 1
+
+    def make_address(self, target):
+        """
+        Parameters:
+                    * target - something to be stored in 4 bytes
+        :rtype:
+        """
+        bytearray_list = compress_bytes(target)
+
+        for byte in bytearray_list:
+            self.bytes_list[self.instruction_indicator] = byte
+            self.instruction_indicator += 1
+
+    def find_name(self, label):
+        """
+        Parameters:
+                    * label
+        :rtype: a symbol object
+        """
+        for obj in self.symbol_table:
+            if obj.label == label:
+                return obj
+
+        return None
+
+    def match(self, tk_):
+        """
+        Parameters:
+                    * tk_ - token type
+        :rtype:
+        """
+        if tk_ == self.current_token[1]:
+            if self.current_token[1] != "TK_EOF":
+                self.current_token = self.clues_list[self.clues_array_index]
+                self.clues_array_index += 1
+        else:
+            raise IndexError("Doesn't Match" + " " + tk_ + " " + self.current_token[1])
+
+    def condition(self):
+        expression = self.expr()
+
+        if self.current_token[1] in comparison_operators_list:
+            data_type = self.current_token[1]
+            self.match(data_type)
+            term2 = self.term()
+            expression = self.emit(data_type, expression, term2)
+            return expression
+
+        else:
+            raise TypeError("Expected condition, not: " + self.current_token[1])
+
+    def expr(self):
+        dt_1 = self.term()
         while self.current_token[1] == "TK_ADD" or self.current_token[1] == "TK_SUBTRACT":
             token_op = self.current_token[1]
-
             self.match(token_op)
+            dt_1 = self.emit(token_op, dt_1, self.term())
 
-            data_type2 = self.term()
-            data_type1 = self.emit(token_op, data_type1, data_type2)
+        return dt_1
 
-        return data_type1
-
-    # ##############################################################################################
-    # handles terms
     def term(self):
-        data_type1 = self.factor()
+        dt_1 = self.factor()
         while self.current_token[1] == "TK_MULTIPLY" or self.current_token[1] == "TK_DIVIDE":
             token_op = self.current_token[1]
             self.match(token_op)
-            data_type2 = self.factor()
-            data_type1 = self.emit(token_op, data_type1, data_type2)
-        return data_type1
+            dt_1 = self.emit(token_op, dt_1, self.factor())
+        return dt_1
 
-        # ##############################################################################################
+    def assignment_statement(self):
+        sym_object = self.find_name(self.current_token[0])
+        if sym_object:
+            left_side = sym_object.data_type
 
-    # handles factor and creates machine instructions
-    def factor(self):
+            self.match("TK_ID")
 
-        if self.current_token[1] == "TK_INTEGER":
-            self.make_opcode(Opcodes.pushi)
-            self.make_address(self.current_token[0])
-            self.match("TK_INTEGER")
-            return "TK_INTEGER"
-        elif self.current_token[1] == "TK_ID":
-            symbol = self.find_name(self.current_token[0])
+            if self.current_token[1] == "TK_LEFT_BRACKET":
+                self.array_assignment(sym_object)
+                return
 
-            if symbol.description == "VARIABLE":
-                self.make_opcode(Opcodes.push)
-                self.make_address(symbol.data_indicator)
-                self.match("TK_ID")
-                return symbol.data_type
-            elif symbol.description == "ARRAY":
-                self.match("TK_ID")
-                self.access_array(symbol)
-                self.make_opcode(Opcodes.get)
-                return symbol.assignment_type
-        elif self.current_token[1] == "TK_BOOL":
-            self.make_opcode(Opcodes.pushi)
-            self.make_address(self.current_token[0])
-            self.match("TK_BOOL")
-            return "TK_BOOL"
-        elif self.current_token[1] == "TK_CHAR":
-            self.make_opcode(Opcodes.pushi)
-            self.make_address(self.current_token[0])
-            self.match("TK_CHAR")
-            return "TK_CHAR"
-        elif self.current_token[1] == "TK_REAL":
-            self.make_opcode(Opcodes.pushi)
-            self.make_address(self.current_token[0])
-            self.match("TK_REAL")
-            return "TK_REAL"
-        elif self.current_token[1] == "TK_NOT":
-            self.make_opcode(Opcodes.logical_not)
-            self.match("TK_NOT")
-            return self.factor()
-        elif self.current_token[1] == "TK_LEFT_PAR":
-            self.match("TK_LEFT_PAR")
-            left_par = self.expressions()
-            self.match("TK_RIGHT_PAR")
-            return left_par
+            self.match("TK_ASSIGNMENT")
+            right_side = self.expr()
+
+            if left_side == right_side:
+                self.make_opcode(Opcodes.pop)
+                self.make_address(sym_object.data_indicator)
+            else:
+                raise TypeError(left_side + ' != ' + right_side)
         else:
-            pass
+            raise NameError("Variable Not Declared: " + self.current_token[0])
 
-    # #####################################################################################################
-
-    # ######################################################################################################
-    # Accesses the array for the range specified by program
     def access_array(self, symbol):
+        """
+        Parameters:
+                    * symbol - the array to be accessed
+        :rtype:
+        """
         self.match("TK_LEFT_BRACKET")
         current_symbol = self.find_name(self.current_token[0])
         self.make_opcode(Opcodes.push)
@@ -495,147 +638,4 @@ class Parser(object):
             self.make_opcode(Opcodes.add)
 
         else:
-            raise TypeError('Array does not support type:' + current_symbol.data_type)
-
-            # ####################################################################################################
-
-    # Handles array assignments
-    def array_assignment(self, symbol):
-        self.access_array(symbol)
-        self.match("TK_ASSIGNMENT")
-        exp_1 = self.expressions()
-        if exp_1 == symbol.assignment_type:
-            self.make_opcode(Opcodes.put)
-        else:
-            raise TypeError('Array assignment mismatched types: ' + exp_1 + ' and ' + symbol.assignment_type)
-
-            #   ####################################################################################################
-
-    #  based on lookup tables. Creates appropriate machine instructions depending on operation and
-    # the combination of datatype of the variables
-    # Returns: Data type of result
-    def emit(self, operation, datatype_1, datatype_2):
-        # addition
-        if operation == "TK_ADD":
-            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="addition")
-        # subtraction
-        elif operation == "TK_SUBTRACT":
-            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="subtraction")
-        # division
-        elif operation == "TK_DIVIDE":
-            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="division")
-        elif operation == "TK_DIV":
-            if datatype_1 == "TK_INTEGER" and datatype_2 == "TK_INTEGER":
-                self.make_opcode(Opcodes.divide)
-                return "TK_INT"
-        # multiplication
-        elif operation == "TK_MULTIPLY":
-            return self.checkDataTypesForArth(datatype_1, datatype_2, operation="multiplication")
-        # or operator
-        elif operation == "TK_OR":
-            if datatype_1 == "TK_BOOL" and datatype_2 == "TK_BOOL":
-                self.make_opcode(Opcodes.logical_or)
-                return "TK_BOOL"
-        # equal operator
-        elif operation == "TK_EQUAL":
-            return self.checkDataTypesForLogical(datatype_1, datatype_2, "equal")
-            # not equal
-        elif operation == "TK_NOT_EQUAL":
-            return self.checkDataTypesForLogical(datatype_1, datatype_2, "not_equal")
-            # less than
-        elif operation == "TK_LESS_THAN":
-            return self.checkDataTypesForLogical(datatype_1, datatype_2, "less_than")
-            # less than or equal to
-        elif operation == "TK_LESS_THAN_EQUAL":
-            return self.checkDataTypesForLogical(datatype_1, datatype_2, "lte")
-            # greater than
-        elif operation == "TK_GREATER_THAN":
-            return self.checkDataTypesForLogical(datatype_1, datatype_2, "greater_than")
-            # greater than or equal to
-        elif operation == "TK_GREATER_THAN_EQUAL":
-            return self.checkDataTypesForLogical(datatype_1, datatype_2, "gte")
-        else:
-            raise TypeError("Emit cannot match datatype. Datatypes found: " + datatype_1 + " , " + datatype_2)
-
-            # #############################################################################################################
-
-    # handles variable assignment
-    def assignment_statement(self):
-        symbol = self.find_name(self.current_token[0])
-        if symbol:
-            left_side = symbol.data_type
-
-            self.match("TK_ID")
-
-            if self.current_token[1] == "TK_LEFT_BRACKET":
-                self.array_assignment(symbol)
-                return
-
-            self.match("TK_ASSIGNMENT")
-
-            right_side = self.expressions()
-
-            if left_side == right_side:
-                self.make_opcode(Opcodes.pop)
-                self.make_address(symbol.data_indicator)
-
-            else:
-                raise TypeError(left_side + ' != ' + right_side)
-
-        else:
-            raise NameError("Variable Not Declared: " + self.current_token[0])
-
-            # #######################################################################################
-
-    def condition(self):
-        term1 = self.expressions()
-
-        if self.current_token[1] in comparison_operators_list:
-            data_type = self.current_token[1]
-            self.match(data_type)
-            term2 = self.term()
-            term1 = self.emit(data_type, term1, term2)
-            return term1
-
-        else:
-            raise TypeError("Expected condition, but instead received: " + self.current_token[1])
-
-    # ####################################################################################
-
-    # Helper functions
-
-    # ####################################################################################
-
-    def make_opcode(self, *ops):
-        for op in ops:
-            self.bytes_list[self.instruction_indicator] = op
-            self.instruction_indicator += 1
-
-    def make_address(self, target):
-
-        bytearray_list = compress_bytes(target)
-
-        for byte in bytearray_list:
-            self.bytes_list[self.instruction_indicator] = byte
-            self.instruction_indicator += 1
-
-    def find_name(self, label):
-        """
-        :rtype: symbol object
-        """
-        for obj in self.symbol_table:
-            if obj.label == label:
-                return obj
-
-        return None
-
-    def match(self, tk_):
-        """
-        Checks if current token matches with input and then updates the array index
-        """
-        if tk_ == self.current_token[1]:
-            if self.current_token[1] != "TK_EOF":
-                self.current_token = self.clues_list[self.clues_array_index]
-                self.clues_array_index += 1
-        else:
-            raise IndexError("Doesn't Match" + " " + tk_ + " " + self.current_token[1])
+            raise TypeError('Array does not support:' + current_symbol.data_type)
