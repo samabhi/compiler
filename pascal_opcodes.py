@@ -6,6 +6,17 @@ class Opcodes(object):
         add, xchg, cvr, fadd, sub, fsub, divide, multiply, fmultiply, logical_or, greater_than, less_than,\
         equal, not_equal, gte, lte, jfalse, jump, put, get, array_print = range(31)
 
+op_Opcodes = {
+    "addition" : Opcodes.add,
+    "faddition": Opcodes.fadd,
+    "fsubtraction": Opcodes.fsub,
+    "subtraction": Opcodes.sub,
+    "multiplication": Opcodes.multiply,
+    "fmultiplication": Opcodes.fmultiply,
+    "division": Opcodes.divide,
+    "fdivision": Opcodes.divide,
+    }
+
 
 # ###############################################################################################################
 # Takes a 4 byte value, and returns the actual value. Undoes what decompress_bytes() function does

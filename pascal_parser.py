@@ -1,7 +1,8 @@
 #this code generates machine code from each of the user program instructions
-from pascal_opcodes import Opcodes, compress_bytes
+from pascal_opcodes import Opcodes, compress_bytes, op_Opcodes
 from Symbol import symbol
 import auxiliary_parser_functions as Aux
+
 
 class Parser(object):
     def __init__(self, clues):
@@ -17,168 +18,42 @@ class Parser(object):
         self.clues_array_index += 1
 
 # ####################################################################################
-    def addition(self,datatype_1, datatype_2):
-        # if the two datatypes are equal, then simply generate opcode
-            if Aux.check_int_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.add)
-                return "TK_INTEGER"
-            elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.fadd)
-                return "TK_REAL"
-            elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.fadd)
-                return "TK_REAL"
-            elif Aux.check_real_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.add)
-                return "TK_REAL"
-# ####################################################################################
-    def subtraction(self,datatype_1, datatype_2):
+    def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
+        op_Opcode = op_Opcodes
         if Aux.check_int_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.sub)
+            self.make_opcode(op_Opcode.get(operation))
+            if(operation == "division"):
+                return datatype_1
+            else:
                 return "TK_INTEGER"
         elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.fsub)
-                return "TK_REAL"
+            self.make_opcode(Opcodes.xchg,
+                             Opcodes.cvr,
+                             Opcodes.xchg,
+                             op_Opcode.get(str("f" + operation)))
+            return "TK_REAL"
         elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.fsub)
-                return "TK_REAL"
+            self.make_opcode(Opcodes.cvr, op_Opcode.get(str("f" + operation)))
+            return "TK_REAL"
         elif Aux.check_real_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.fsub)
-                return "TK_REAL"
-# ####################################################################################
-    def division(self,datatype_1, datatype_2):
-        if Aux.check_data(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.divide)
-                return datatype_1
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.divide)
-                return "TK_REAL"
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.divide)
-                return "TK_REAL"
-        else:
+            if(operation in {"subtraction","multiplication"}):
+                self.make_opcode(op_Opcode.get(str("f" + operation)))
+            elif operation == "addition":
+                self.make_opcode(op_Opcode.get(operation))
+            elif operation == "division":
                 raise TypeError(
                     "Error in Divide Operation. Invalid datatypes. Found:" + datatype_1 + " , " + datatype_2)
- # ####################################################################################
-    def multiplication(self,datatype_1, datatype_2):
-        if Aux.check_int_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.multiply)
-                return "TK_INTEGER"
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.fmultiply)
-                return "TK_REAL"
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.fmultiply)
-                return "TK_REAL"
-        elif Aux.check_real_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.fmultiply)
-                return "TK_REAL"
-# ####################################################################################
-    def equal_operator(self,datatype_1, datatype_2):
-        if Aux.check_data(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.equal)
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.equal)
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.equal)
-        else:
-                return None
-        return "TK_BOOL"
-# ####################################################################################
-    def notequal_operator(self,datatype_1, datatype_2):
+            return "TK_REAL"
+
+    def checkDataTypesForLogical(self, datatype_1, datatype_2, operation):
+        dict_op = {"equal": Opcodes.equal, "not_equal":Opcodes.not_equal, "less_than": Opcodes.less_than, "greater_than": Opcodes.greater_than, "lte": Opcodes.lte, "gte": Opcodes.gte}
+
         if self.ifEqual(datatype_1, datatype_2):
-                self.make_opcode(Opcodes.not_equal)
+                self.make_opcode(dict_op.get(operation))
         elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.not_equal)
+                self.make_opcode(Opcodes.xchg, Opcodes.cvr, Opcodes.xchg, dict_op.get(operation))
         elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.not_equal)
-        else:
-                return None
-
-        return "TK_BOOL"
-# ####################################################################################
-    def lessthen(self,datatype_1, datatype_2):
-        if Aux.check_data(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.less_than)
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.less_than)
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.less_than)
-        else:
-                return None
-        return "TK_BOOL"
-# ####################################################################################
-    def lessthenorequal(self,datatype_1, datatype_2):
-        if Aux.check_data(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.lte)
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.lte)
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.lte)
-        else:
-                return None
-
-        return "TK_BOOL"
-# ####################################################################################
-    def greaterthen(self,datatype_1, datatype_2):
-        if Aux.check_data(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.greater_than)
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.greater_than)
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.greater_than)
-        else:
-                return None
-
-        return "TK_BOOL"
-# ####################################################################################
-    def greaterthenorequal(self,datatype_1, datatype_2):
-        if Aux.check_data(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.gte)
-        elif Aux.check_int_real(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.xchg)
-                self.make_opcode(Opcodes.gte)
-        elif Aux.check_real_int(datatype_1,datatype_2):
-                self.make_opcode(Opcodes.cvr)
-                self.make_opcode(Opcodes.gte)
+                self.make_opcode(Opcodes.cvr, dict_op.get(operation))
         else:
                 return None
 
@@ -348,9 +223,10 @@ class Parser(object):
 
 # ###############################################################################################
     # generates one byte opcode using the instruction pointer and then increments the instruction pointer
-    def make_opcode(self, op):
-        self.bytes_list[self.instruction_indicator] = op
-        self.instruction_indicator += 1
+    def make_opcode(self, *ops):
+        for op in ops:
+            self.bytes_list[self.instruction_indicator] = op
+            self.instruction_indicator += 1
 
 # ################################################################################################
     # packs a target value into 4 bytes, using the instruction pointer and increments the instruction pointer
@@ -685,20 +561,20 @@ class Parser(object):
     def emit(self, operation, datatype_1, datatype_2):
         # addition
         if operation == "TK_ADD":
-            return self.addition(datatype_1,datatype_2)
+            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="addition")
         # subtraction
         elif operation == "TK_SUBTRACT":
-            return self.subtraction(datatype_1,datatype_2)
+            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="subtraction")
         # division
         elif operation == "TK_DIVIDE":
-            return self.division(datatype_1,datatype_2)
+            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="division")
         elif operation == "TK_DIV":
             if datatype_1 == "TK_INTEGER" and datatype_2 == "TK_INTEGER":
                 self.make_opcode(Opcodes.divide)
                 return "TK_INT"
         # multiplication
         elif operation == "TK_MULTIPLY":
-            return self.multiplication(datatype_1,datatype_2)
+            return self.checkDataTypesForArth(datatype_1,datatype_2, operation="multiplication")
         # or operator
         elif operation == "TK_OR":
             if datatype_1 == "TK_BOOL" and datatype_2 == "TK_BOOL":
@@ -706,22 +582,22 @@ class Parser(object):
                 return "TK_BOOL"
         # equal operator
         elif operation == "TK_EQUAL":
-            return self.equal_operator(datatype_1,datatype_2)
-        # not equal
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "equal")
+            # not equal
         elif operation == "TK_NOT_EQUAL":
-            return self.notequal_operator(datatype_1,datatype_2)
-        # less than
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "not_equal")
+            # less than
         elif operation == "TK_LESS_THAN":
-            return self.lessthen(datatype_1,datatype_2)
-        # less than or equal to
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "less_than")
+            # less than or equal to
         elif operation == "TK_LESS_THAN_EQUAL":
-            return self.lessthenorequal(datatype_1,datatype_2)
-        # greater than
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "lte")
+            # greater than
         elif operation == "TK_GREATER_THAN":
-            return self.greaterthen(datatype_1,datatype_2)
-        # greater than or equal to
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "greater_than")
+            # greater than or equal to
         elif operation == "TK_GREATER_THAN_EQUAL":
-            return self.greaterthenorequal(datatype_1,datatype_2)
+            return self.checkDataTypesForLogical(datatype_1, datatype_2, "gte")
         else:
             raise TypeError("Emit cannot match datatype. Datatypes found: " + datatype_1 + " , " + datatype_2)
 
