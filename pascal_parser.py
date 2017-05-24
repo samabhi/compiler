@@ -20,7 +20,7 @@ class Parser(object):
 
 # ####################################################################################
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
-        op_Opcode = op_Opcodes
+        op_Opcode = arth_op
         if Aux.check_int_int(datatype_1,datatype_2):
             self.make_opcode(op_Opcode.get(operation))
             if(operation == "division"):

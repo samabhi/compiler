@@ -16,8 +16,7 @@ if __name__ == '__main__':
                                filetypes=[("Pascal File","*.pas")],
                                title='Choose a pascal file'
                             )
-    if filename != None:
-        scn = Scanner(filename)
+    scn = Scanner(filename)
 
     clues = scn.scan()
 
