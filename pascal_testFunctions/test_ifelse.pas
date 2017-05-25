@@ -11,6 +11,6 @@ begin
     if a = 20 then
         writeln(a);
     else
-    writeln(b);
+        writeln(b);
 
 end.

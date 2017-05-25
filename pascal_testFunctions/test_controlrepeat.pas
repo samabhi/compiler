@@ -3,10 +3,11 @@ var
    a: integer;
 
 begin
-   a := 10;
-   (* Repeat- until example *)
+   a := 1;
+
    repeat
-      a := a + 1
       writeln(a);
-   until a = 20;
+      a := a + 1
+   until a = 6;
+
 end.

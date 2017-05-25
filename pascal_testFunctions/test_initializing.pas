@@ -5,9 +5,9 @@ var
 begin
 
     (* Example 1: Variable assignment, addition and printing out an integer *)
-    x := 10;
+    x := 1;
     writeln(x);
-    x := 10+50;
+    x := 1+5;
     writeln(x);
 
     (*Example 2: Division*)

@@ -3,10 +3,10 @@ var
    a: integer;
 
 begin
-   a := 10;
+   a := 1;
 
    (* Example of while loop *)
-   while  a <> 20  do
+   while  a <> 5  do
    begin
       writeln(a);
       a := a + 1;
