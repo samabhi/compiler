@@ -1,7 +1,7 @@
 program whileLoop;
-var
-   a: integer;
 
+var
+   a : integer;
 begin
    a := 1;
 
@@ -11,4 +11,5 @@ begin
       writeln(a);
       a := a + 1;
    end;
+
 end.

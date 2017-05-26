@@ -1,5 +1,6 @@
 # -*- pascal_opcodes.py -*-
 # Assigns values to opcodes
+
 from enum import IntEnum
 
 

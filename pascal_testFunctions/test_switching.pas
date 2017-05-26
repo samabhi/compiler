@@ -11,10 +11,10 @@ begin
 
     (* Case statement example*)
     case (a) of
-    1 : writeln(a);
-    2 : writeln(b);
-    3 : writeln(c);
-    4 : writeln(d);
-    5 : writeln(f);
+    1 = writeln(a);
+    2 = writeln(b);
+    3 = writeln(c);
+    4 = writeln(d);
+    5 = writeln(f);
     end;
 end.

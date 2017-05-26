@@ -3,7 +3,7 @@
 
 from pascal_opcodes import Opcodes, compress_bytes, arth_op, comp_op
 from symbol import Symbol
-import auxiliary_parser_functions as Aux
+import parser_helper as Aux
 from keywords import comparison_operators_list
 
 
@@ -58,39 +58,39 @@ class Parser(object):
     # Statement Handler Functions
 
     # ################################################################################################
-
+    
     def case_state(self):
         self.match("TK_CASE")
         self.match("TK_LEFT_PAR")
-        checker = self.curr_t
+        verification = self.curr_t
         exp_1 = self.expr()
         if exp_1 == "TK_REAL":
             raise TypeError('REAL not accepted here')
         self.match("TK_RIGHT_PAR")
         self.match("TK_OF")
-        hole_list = []
+        instruction_list = []
         while (self.curr_t[1] == "TK_INTEGER" or
                        self.curr_t[1] == "TK_CHAR" or
                        self.curr_t[1] == "TK_BOOL"):
             exp_2 = self.expr()
             self.emit("TK_EQUAL", exp_1, exp_2)
-            self.match("TK_COLON")
+            self.match("TK_EQUAL")
 
             self.gen_opcode(Opcodes.jfalse)
-            hole = self.instruction_indicator
+            instruc = self.instruction_indicator
             self.gen_address(0)
             self.statements()
 
             self.gen_opcode(Opcodes.jump)
-            hole_list.append(self.instruction_indicator)
+            instruction_list.append(self.instruction_indicator)
             self.gen_address(0)
 
             save = self.instruction_indicator
-            self.instruction_indicator = hole
+            self.instruction_indicator = instruc
             self.gen_address(save)
             self.instruction_indicator = save
             if self.curr_t[1] != "TK_END":
-                symbol = self.find_name(checker[0])
+                symbol = self.find_name(verification[0])
                 if symbol is not None:
                     self.gen_opcode(Opcodes.push)
                     self.gen_address(symbol.data_indicator)
@@ -98,8 +98,8 @@ class Parser(object):
         self.match("TK_END")
         self.match("TK_SEMICOLON")
         save = self.instruction_indicator
-        for hole in hole_list:
-            self.instruction_indicator = hole
+        for instruc in instruction_list:
+            self.instruction_indicator = instruc
             self.gen_address(save)
         self.instruction_indicator = save
 
@@ -119,7 +119,7 @@ class Parser(object):
         self.match("TK_INTEGER")
         self.match("TK_DO")
         self.gen_opcode(Opcodes.jfalse)
-        hole = self.instruction_indicator
+        instruc = self.instruction_indicator
         self.gen_address(0)
 
         self.match("TK_BEGIN")
@@ -137,7 +137,7 @@ class Parser(object):
         self.gen_opcode(Opcodes.jump)
         self.gen_address(target)
         save = self.instruction_indicator
-        self.instruction_indicator = hole
+        self.instruction_indicator = instruc
         self.gen_address(save)
         self.instruction_indicator = save
 
@@ -146,45 +146,45 @@ class Parser(object):
         self.condition()
         self.match("TK_THEN")
         self.gen_opcode(Opcodes.jfalse)
-        h_one = self.instruction_indicator
+        iftrue_instruction = self.instruction_indicator
         self.gen_address(0)
         self.statements()
         if self.curr_t[1] == "TK_ELSE":
             self.gen_opcode(Opcodes.jump)
-            h_two = self.instruction_indicator
+            else_instruction = self.instruction_indicator
             self.gen_address(0)
             save = self.instruction_indicator
-            self.instruction_indicator = h_one
+            self.instruction_indicator = iftrue_instruction
             self.gen_address(save)
             self.instruction_indicator = save
-            h_one = h_two
+            iftrue_instruction = else_instruction
             self.match("TK_ELSE")
             self.statements()
         save = self.instruction_indicator
-        self.instruction_indicator = h_one
+        self.instruction_indicator = iftrue_instruction
         self.gen_address(save)
         self.instruction_indicator = save
 
     def whileloop_state(self):
         self.match("TK_WHILE")
-        target = self.instruction_indicator
+        validation = self.instruction_indicator
         self.condition()
         self.match("TK_DO")
 
         self.match("TK_BEGIN")
         self.gen_opcode(Opcodes.jfalse)
-        hole = self.instruction_indicator
+        instruction = self.instruction_indicator
         self.gen_address(0)
 
         self.statements()
 
         self.gen_opcode(Opcodes.jump)
-        self.gen_address(target)
+        self.gen_address(validation)
 
-        save = self.instruction_indicator
-        self.instruction_indicator = hole
-        self.gen_address(save)
-        self.instruction_indicator = save
+        after_loop_instruction = self.instruction_indicator
+        self.instruction_indicator = instruction
+        self.gen_address(after_loop_instruction)
+        self.instruction_indicator = after_loop_instruction
 
         self.match("TK_END")
         self.match("TK_SEMICOLON")
@@ -264,14 +264,15 @@ class Parser(object):
     # #######################################################################################
 
     def declare_var(self):
-
+        """
+        Declare variables
+        """
         self.match("TK_VAR")
-
-        var_list = []
+        variables_initialized = []
 
         while self.curr_t[1] == "TK_ID":
-            if self.curr_t not in var_list:
-                var_list.append(self.curr_t)
+            if self.curr_t not in variables_initialized:
+                variables_initialized.append(self.curr_t)
                 self.match("TK_ID")
 
                 if self.curr_t[1] == "TK_COMMA":
@@ -281,26 +282,8 @@ class Parser(object):
 
         self.match("TK_COLON")
 
-        if self.curr_t[1] == "TK_INTEGER":
-            data_type = self.curr_t[1]
-            self.match("TK_INTEGER")
-        elif self.curr_t[1] == "TK_BOOL":
-            data_type = self.curr_t[1]
-            self.match("TK_BOOL")
-        elif self.curr_t[1] == "TK_CHAR":
-            data_type = self.curr_t[1]
-            self.match("TK_CHAR")
-        elif self.curr_t[1] == "TK_STRING":
-            data_type = self.curr_t[1]
-            self.match("TK_STRING")
-        elif self.curr_t[1] == "TK_REAL":
-            data_type = self.curr_t[1]
-            self.match("TK_REAL")
-        elif self.curr_t[1] == "TK_ARRAY":
-            data_type = self.curr_t[1]
-            self.match("TK_ARRAY")
-        else:
-            raise TypeError("Invalid Type: " + self.curr_t[1])
+        data_type = Aux.get_type(self.curr_t[1])
+        self.match(data_type)
 
         if data_type == "TK_ARRAY":
             self.match("TK_LEFT_BRACKET")
@@ -318,28 +301,25 @@ class Parser(object):
             elif self.curr_t[1] == "TK_CHAR":
                 assignment_type = self.curr_t[1]
                 self.match("TK_CHAR")
-            elif self.curr_t[1] == "TK_BOOL":
-                assignment_type = self.curr_t[1]
-                self.match("TK_BOOL")
             else:
                 raise TypeError("Unsupported types: " + self.curr_t[1])
             self.match("TK_SEMICOLON")
 
-            for var in var_list:
-                s = Symbol(var[0], 'TK_ARRAY', 'ARRAY', self.data_indicator)
-                s.access_type = access_type
-                s.lower_bound = lower_bound
-                s.upper_bound = upper_bound
-                s.assignment_type = assignment_type
-                self.symbol_table.append(s)
+            for variable in variables_initialized:
+                array_symb = Symbol(variable[0], 'TK_ARRAY', 'ARRAY', self.data_indicator)
+                array_symb.access_type = access_type
+                array_symb.lower_bound = lower_bound
+                array_symb.upper_bound = upper_bound
+                array_symb.assignment_type = assignment_type
+                self.symbol_table.append(array_symb)
                 self.data_indicator += 4 * int(upper_bound) - int(lower_bound)
 
         else:
             self.match("TK_SEMICOLON")
-            for var in var_list:
-                var_symbol = Symbol(var[0], data_type, "VARIABLE", self.data_indicator)
+            for variable in variables_initialized:
+                variable_symb = Symbol(variable[0], data_type, "VARIABLE", self.data_indicator)
                 self.data_indicator += 1
-                self.symbol_table.append(var_symbol)
+                self.symbol_table.append(variable_symb)
             self.data_indicator += 1
 
         if self.curr_t[1] == "TK_VAR":
@@ -364,14 +344,15 @@ class Parser(object):
     # ##############################################################################################
 
     def factor(self):
-        if self.curr_t[1] == "TK_INTEGER":
+        token_type = self.curr_t[1]
+
+        if token_type == "TK_INTEGER":
             self.gen_opcode(Opcodes.pushi)
             self.gen_address(self.curr_t[0])
             self.match("TK_INTEGER")
             return "TK_INTEGER"
-        elif self.curr_t[1] == "TK_ID":
+        elif token_type == "TK_ID":
             sym_object = self.find_name(self.curr_t[0])
-
             if sym_object.description == "VARIABLE":
                 self.gen_opcode(Opcodes.push)
                 self.gen_address(sym_object.data_indicator)
@@ -382,31 +363,31 @@ class Parser(object):
                 self.access_array(sym_object)
                 self.gen_opcode(Opcodes.get)
                 return sym_object.assignment_type
-        elif self.curr_t[1] == "TK_STRING":
+        elif token_type == "TK_STRING":
             self.gen_opcode(Opcodes.pushi)
             self.gen_address(self.curr_t[0])
             self.match("TK_STRING")
             return "TK_BOOL"
-        elif self.curr_t[1] == "TK_BOOL":
+        elif token_type == "TK_BOOL":
             self.gen_opcode(Opcodes.pushi)
             self.gen_address(self.curr_t[0])
             self.match("TK_BOOL")
             return "TK_BOOL"
-        elif self.curr_t[1] == "TK_CHAR":
+        elif token_type == "TK_CHAR":
             self.gen_opcode(Opcodes.pushi)
             self.gen_address(self.curr_t[0])
             self.match("TK_CHAR")
             return "TK_CHAR"
-        elif self.curr_t[1] == "TK_REAL":
+        elif token_type == "TK_REAL":
             self.gen_opcode(Opcodes.pushi)
             self.gen_address(self.curr_t[0])
             self.match("TK_REAL")
             return "TK_REAL"
-        elif self.curr_t[1] == "TK_NOT":
+        elif token_type == "TK_NOT":
             self.gen_opcode(Opcodes.logical_not)
             self.match("TK_NOT")
             return self.factor()
-        elif self.curr_t[1] == "TK_LEFT_PAR":
+        elif token_type == "TK_LEFT_PAR":
             self.match("TK_LEFT_PAR")
             left_par = self.expr()
             self.match("TK_RIGHT_PAR")
@@ -414,23 +395,8 @@ class Parser(object):
         else:
             pass
 
-    # #####################################################################################################
-
-    def array_assign(self, symbol):
-        """
-        Parameters:
-                    * symbol - an array
-        :rtype:
-        """
-        self.access_array(symbol)
-        self.match("TK_ASSIGNMENT")
-        exp_1 = self.expr()
-        if exp_1 == symbol.assignment_type:
-            self.gen_opcode(Opcodes.put)
-        else:
-            raise TypeError('Mismatched types: ' + exp_1 + ' and ' + symbol.assignment_type)
-
     #  ####################################################################################################
+
     def checkDataTypesForArth(self, datatype_1, datatype_2, operation):
         """
         Parameters:
@@ -610,7 +576,13 @@ class Parser(object):
             self.match("TK_ID")
 
             if self.curr_t[1] == "TK_LEFT_BRACKET":
-                self.array_assign(sym_object)
+                self.access_array(sym_object)
+                self.match("TK_ASSIGNMENT")
+                exp_1 = self.expr()
+                if exp_1 == sym_object.assignment_type:
+                    self.gen_opcode(Opcodes.put)
+                else:
+                    raise TypeError('Mismatched types: ' + exp_1 + ' and ' + symbol.assignment_type)
                 return
 
             self.match("TK_ASSIGNMENT")
@@ -631,15 +603,15 @@ class Parser(object):
         :rtype:
         """
         self.match("TK_LEFT_BRACKET")
-        current_symbol = self.find_name(self.curr_t[0])
+        sym_atindex = self.find_name(self.curr_t[0])
         self.gen_opcode(Opcodes.push)
-        self.gen_address(current_symbol.data_indicator)
+        self.gen_address(sym_atindex.data_indicator)
         self.match("TK_ID")
         self.match("TK_RIGHT_BRACKET")
 
         self.gen_opcode(Opcodes.pushi)
 
-        if current_symbol.data_type == "TK_INTEGER":
+        if sym_atindex.data_type == "TK_INTEGER":
             self.gen_address(symbol.lower_bound)
             self.gen_opcode(Opcodes.xchg)
             self.gen_opcode(Opcodes.sub)
@@ -651,4 +623,4 @@ class Parser(object):
             self.gen_opcode(Opcodes.add)
 
         else:
-            raise TypeError('Array does not support:' + current_symbol.data_type)
+            raise TypeError('Unsupported type:' + sym_atindex.data_type)

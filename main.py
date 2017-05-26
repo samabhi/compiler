@@ -10,7 +10,7 @@ if __name__ == '__main__':
     root.withdraw()
     filename = askopenfilename(initialdir='pascal_testFunctions',
                                filetypes=[("Pascal File","*.pas")],
-                               title='Choose a pascal file'
+                               title='Choose a pascal_file file'
                             )
 
     token_list = Scanner(filename).scan()

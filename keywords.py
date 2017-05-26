@@ -97,4 +97,3 @@ comparison_operators_list = [
     "TK_GREATER_THAN_EQUAL",
     "TK_LESS_THAN_EQUAL"
 ]
-
